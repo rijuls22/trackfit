@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrackFit — Personal Fitness Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#060610;--surface:#0e0e1c;--card:#12121f;--card2:#161625;
+  --border:#1e1e35;--accent:#7c6bff;--accent2:#ff6b9d;--accent3:#00e5c4;
+  --yellow:#ffe566;--text:#eeeeff;--muted:#5a5a80;--green:#3dffc0;
+  --red:#ff5e7a;--glow:rgba(124,107,255,0.35);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* BG */
+.bg-orbs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.18;animation:orbFloat 12s ease-in-out infinite alternate}
+.orb1{width:500px;height:500px;background:var(--accent);top:-150px;left:-100px;animation-duration:14s}
+.orb2{width:400px;height:400px;background:var(--accent2);bottom:-100px;right:-80px;animation-duration:11s;animation-delay:-4s}
+.orb3{width:300px;height:300px;background:var(--accent3);top:40%;left:40%;animation-duration:16s;animation-delay:-8s}
+@keyframes orbFloat{0%{transform:translate(0,0) scale(1)}100%{transform:translate(40px,30px) scale(1.08)}}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(124,107,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(124,107,255,.04) 1px,transparent 1px);
+  background-size:48px 48px}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;
+  padding:0 36px;height:66px;background:rgba(6,6,16,.75);backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(124,107,255,.12);animation:slideDown .6s cubic-bezier(.16,1,.3,1) both}
+@keyframes slideDown{from{transform:translateY(-100%);opacity:0}to{transform:none;opacity:1}}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:3px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2),var(--accent3));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 20px var(--glow));animation:logoGlow 3s ease-in-out infinite alternate}
+@keyframes logoGlow{from{filter:drop-shadow(0 0 10px var(--glow))}to{filter:drop-shadow(0 0 28px rgba(124,107,255,.6))}}
+.nav-tabs{display:flex;gap:2px;background:rgba(255,255,255,.04);padding:4px;border-radius:12px;border:1px solid var(--border)}
+.nav-tab{padding:8px 18px;border-radius:9px;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;
+  font-size:13.5px;font-weight:500;background:transparent;color:var(--muted);transition:all .25s cubic-bezier(.4,0,.2,1);
+  position:relative;overflow:hidden}
+.nav-tab::before{content:'';position:absolute;inset:0;border-radius:9px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));opacity:0;transition:opacity .25s}
+.nav-tab.active{color:#fff}.nav-tab.active::before{opacity:1}
+.nav-tab span{position:relative;z-index:1}
+.nav-tab:hover:not(.active){color:var(--text);background:rgba(255,255,255,.06)}
+
+/* LOADING OVERLAY */
+#loading-overlay{position:fixed;inset:0;z-index:9999;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+  transition:opacity .5s}
+#loading-overlay.hidden{opacity:0;pointer-events:none}
+.spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* PAGES */
+.page{display:none;padding:36px;max-width:1140px;margin:0 auto;position:relative;z-index:1}
+.page.active{display:block}
+.page.active .animate-in{animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both}
+.page.active .animate-in:nth-child(1){animation-delay:.05s}
+.page.active .animate-in:nth-child(2){animation-delay:.12s}
+.page.active .animate-in:nth-child(3){animation-delay:.19s}
+.page.active .animate-in:nth-child(4){animation-delay:.26s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+
+/* HERO */
+.hero{border-radius:22px;padding:36px 42px;margin-bottom:28px;
+  background:linear-gradient(135deg,#1a0f3c 0%,#1f0a2e 40%,#0f1a3c 100%);
+  border:1px solid rgba(124,107,255,.25);display:flex;align-items:center;
+  justify-content:space-between;gap:24px;position:relative;overflow:hidden;
+  box-shadow:0 0 60px rgba(124,107,255,.12),inset 0 1px 0 rgba(255,255,255,.06)}
+.hero::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 20% 50%,rgba(124,107,255,.15) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 50%,rgba(255,107,157,.1) 0%,transparent 60%)}
+.hero::after{content:'TRACKFIT';position:absolute;right:-20px;top:50%;transform:translateY(-50%);
+  font-family:'Bebas Neue',sans-serif;font-size:160px;letter-spacing:8px;
+  color:rgba(255,255,255,.025);pointer-events:none;white-space:nowrap}
+.hero-left{position:relative;z-index:1}
+.hero-left h1{font-family:'Bebas Neue',sans-serif;font-size:56px;line-height:1;
+  background:linear-gradient(135deg,#fff 0%,rgba(255,255,255,.7) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-left p{color:rgba(255,255,255,.45);font-size:14px;margin-top:8px}
+.hero-stats{display:flex;gap:36px;position:relative;z-index:1}
+.hero-stat{text-align:center}
+.hero-stat .val{font-family:'Bebas Neue',sans-serif;font-size:52px;line-height:1;
+  background:linear-gradient(135deg,var(--accent3),var(--accent));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-stat .lbl{font-size:11px;color:rgba(255,255,255,.4);font-weight:600;text-transform:uppercase;letter-spacing:1.5px;margin-top:4px}
+.hero-divider{width:1px;background:rgba(255,255,255,.1);height:60px;align-self:center}
+
+/* STAT CARDS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px;
+  position:relative;overflow:hidden;transition:transform .3s cubic-bezier(.4,0,.2,1),box-shadow .3s,border-color .3s;cursor:default}
+.stat-card:hover{transform:translateY(-4px);border-color:rgba(124,107,255,.4);
+  box-shadow:0 16px 40px rgba(0,0,0,.4),0 0 20px var(--glow)}
+.stat-card .glow-blob{position:absolute;width:100px;height:100px;border-radius:50%;
+  filter:blur(40px);opacity:.25;top:-20px;right:-20px;transition:opacity .3s}
+.stat-card:hover .glow-blob{opacity:.45}
+.stat-card.c1 .glow-blob{background:var(--accent)}.stat-card.c2 .glow-blob{background:var(--accent2)}
+.stat-card.c3 .glow-blob{background:var(--green)}.stat-card.c4 .glow-blob{background:#60a5fa}
+.stat-card::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0;transition:opacity .3s}
+.stat-card.c2::before{background:linear-gradient(90deg,transparent,var(--accent2),transparent)}
+.stat-card.c3::before{background:linear-gradient(90deg,transparent,var(--green),transparent)}
+.stat-card.c4::before{background:linear-gradient(90deg,transparent,#60a5fa,transparent)}
+.stat-card:hover::before{opacity:1}
+.stat-icon{font-size:26px;margin-bottom:10px;display:block}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:42px;line-height:1;margin-bottom:4px;position:relative;z-index:1}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:600}
+
+/* GRID + CARD */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:26px;
+  position:relative;overflow:hidden;transition:border-color .3s}
+.card:hover{border-color:rgba(124,107,255,.2)}
+.card-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:20px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* FORM */
+.form-group{margin-bottom:16px}
+label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:7px}
+input,select,textarea{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);
+  border-radius:10px;padding:11px 14px;color:var(--text);font-family:'Space Grotesk',sans-serif;
+  font-size:14px;transition:border-color .2s,box-shadow .2s,background .2s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
+  background:rgba(124,107,255,.06);box-shadow:0 0 0 3px rgba(124,107,255,.12)}
+select option{background:#0e0e1c}
+textarea{resize:vertical}
+
+/* BUTTONS */
+.btn{width:100%;padding:13px;border-radius:12px;border:none;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;
+  transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+.btn::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.15),transparent);opacity:0;transition:opacity .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(124,107,255,.4)}
+.btn:hover::after{opacity:1}.btn:active{transform:translateY(0)}
+.btn-outline{background:transparent;border:1px solid var(--accent);color:var(--accent);background:rgba(124,107,255,.08)}
+.btn-outline:hover{background:rgba(124,107,255,.2);box-shadow:0 0 20px rgba(124,107,255,.2)}
+.btn-sm{width:auto;padding:6px 14px;font-size:12px;border-radius:8px}
+.btn-danger{background:linear-gradient(135deg,var(--red),#c0392b)}
+.btn-danger:hover{box-shadow:0 8px 24px rgba(255,94,122,.4)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;letter-spacing:1.2px;
+  color:var(--muted);border-bottom:1px solid var(--border)}
+td{padding:13px 14px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr{transition:background .15s}
+tr:hover td{background:rgba(124,107,255,.04)}
+
+/* BADGES */
+.badge{display:inline-block;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:600}
+.badge-cardio{background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.2)}
+.badge-strength{background:rgba(255,107,157,.15);color:var(--accent2);border:1px solid rgba(255,107,157,.2)}
+.badge-flexibility{background:rgba(61,255,192,.15);color:var(--green);border:1px solid rgba(61,255,192,.2)}
+.badge-hiit{background:rgba(124,107,255,.15);color:var(--accent);border:1px solid rgba(124,107,255,.2)}
+
+/* FEEDBACK */
+.feedback-card{background:var(--card2);border:1px solid var(--border);border-radius:14px;
+  padding:20px;margin-bottom:14px;transition:border-color .2s,transform .2s;animation:fadeUp .4s both}
+.feedback-card:hover{border-color:rgba(124,107,255,.3);transform:translateX(4px)}
+.feedback-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.feedback-name{font-weight:700;font-size:15px}
+.feedback-date{font-size:12px;color:var(--muted)}
+.stars{font-size:16px;margin-bottom:8px}
+.stars .lit{color:var(--yellow)}.stars .dim{color:var(--border)}
+.feedback-text{font-size:14px;color:rgba(255,255,255,.6);line-height:1.7}
+
+/* GOALS */
+.goal-item{margin-bottom:20px;padding:16px;background:var(--card2);border:1px solid var(--border);
+  border-radius:12px;transition:border-color .2s;animation:fadeUp .4s both}
+.goal-item:hover{border-color:rgba(124,107,255,.3)}
+.goal-header{display:flex;justify-content:space-between;font-size:14px;margin-bottom:10px}
+.goal-bar-bg{background:rgba(255,255,255,.06);border-radius:99px;height:10px;overflow:hidden}
+.goal-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));
+  transition:width .8s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+.goal-bar-fill::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);animation:shimmer 2s infinite}
+@keyframes shimmer{to{left:200%}}
+.goal-bar-fill.danger{background:linear-gradient(90deg,var(--accent2),var(--red))}
+.goal-bar-fill.success{background:linear-gradient(90deg,var(--accent3),var(--green))}
+
+/* TOAST */
+.toast{position:fixed;bottom:32px;right:32px;z-index:9999;padding:14px 22px;
+  border-radius:14px;font-weight:600;font-size:14px;background:rgba(14,14,28,.95);
+  border:1px solid rgba(124,107,255,.4);color:#fff;backdrop-filter:blur(20px);
+  transform:translateY(80px) scale(.95);opacity:0;transition:all .35s cubic-bezier(.16,1,.3,1);
+  box-shadow:0 12px 40px rgba(0,0,0,.5),0 0 20px var(--glow);max-width:320px}
+.toast.show{transform:none;opacity:1}
+
+/* EMPTY */
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty .icon{font-size:48px;margin-bottom:14px;display:block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+
+/* CHART */
+.chart-wrap{position:relative;height:220px}
+
+/* STARS */
+.star-input{display:flex;gap:8px;margin-top:4px}
+.star-input span{font-size:28px;cursor:pointer;transition:transform .15s,color .15s;color:var(--border)}
+.star-input span.lit{color:var(--yellow);text-shadow:0 0 12px rgba(255,229,102,.6)}
+.star-input span:hover{transform:scale(1.3) rotate(10deg)}
+
+/* LIVE DOT */
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px;position:relative}
+.live-dot::after{content:'';position:absolute;inset:-4px;border-radius:50%;
+  background:rgba(61,255,192,.3);animation:ripple 1.5s infinite}
+@keyframes ripple{0%{transform:scale(1);opacity:1}100%{transform:scale(2);opacity:0}}
+
+.tip-box{background:linear-gradient(135deg,rgba(124,107,255,.1),rgba(255,107,157,.1));
+  border:1px solid rgba(124,107,255,.2);border-radius:12px;padding:16px;
+  font-size:14px;color:rgba(255,255,255,.7);line-height:1.7}
+
+.feedback-banner{margin-top:20px;background:linear-gradient(135deg,rgba(124,107,255,.08),rgba(255,107,157,.08));
+  border:1px solid rgba(124,107,255,.25);border-radius:16px;padding:20px;display:none;animation:fadeUp .5s both}
+.feedback-banner-title{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
+
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+
+@media(max-width:768px){
+  .stats-row{grid-template-columns:1fr 1fr}
+  .grid-2{grid-template-columns:1fr}
+  .hero{flex-direction:column;align-items:flex-start}
+  .hero::after{display:none}
+  nav{padding:0 16px}
+  .page{padding:16px}
+  .hero-stats{flex-wrap:wrap;gap:20px}
+}
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Loading TrackFit...</div>
+</div>
+
+<div class="bg-orbs">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+</div>
+
+<nav>
+  <div class="logo">TRACK<span style="background:linear-gradient(135deg,#fff,rgba(255,255,255,.5));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">FIT</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('dashboard')"><span>Dashboard</span></button>
+    <button class="nav-tab" onclick="showPage('log')"><span>Log Workout</span></button>
+    <button class="nav-tab" onclick="showPage('history')"><span>History</span></button>
+    <button class="nav-tab" onclick="showPage('goals')"><span>Goals</span></button>
+    <button class="nav-tab" onclick="showPage('feedback')"><span>Feedback</span></button>
+  </div>
+</nav>
+
+<!-- DASHBOARD -->
+<div id="page-dashboard" class="page active">
+  <div class="hero animate-in">
+    <div class="hero-left">
+      <h1>Your Fitness<br>Dashboard</h1>
+      <p><span class="live-dot"></span><span id="hero-subtitle">Loading your data...</span></p>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="val" id="hero-streak">—</div><div class="lbl">Day Streak 🔥</div></div>
+      <div class="hero-divider"></div>
+      <div class="hero-stat"><div class="val" id="hero-total">—</div><div class="lbl">Total Workouts</div></div>
+      <div class="hero-divider"></div>
+      <div class="hero-stat"><div class="val" id="hero-mins">—</div><div class="lbl">Total Minutes</div></div>
+    </div>
+  </div>
+  <div class="stats-row animate-in">
+    <div class="stat-card c1"><div class="glow-blob"></div><span class="stat-icon">🏃</span><div class="stat-num" id="stat-week">—</div><div class="stat-label">Workouts This Week</div></div>
+    <div class="stat-card c2"><div class="glow-blob"></div><span class="stat-icon">🔥</span><div class="stat-num" id="stat-cals">—</div><div class="stat-label">Calories Burned</div></div>
+    <div class="stat-card c3"><div class="glow-blob"></div><span class="stat-icon">⏱️</span><div class="stat-num" id="stat-avg">—</div><div class="stat-label">Avg Duration (min)</div></div>
+    <div class="stat-card c4"><div class="glow-blob"></div><span class="stat-icon">💪</span><div class="stat-num" id="stat-fav">—</div><div class="stat-label">Favourite Type</div></div>
+  </div>
+  <div class="grid-2 animate-in" style="margin-bottom:20px">
+    <div class="card"><div class="card-title">📊 Weekly Activity (minutes)</div><div class="chart-wrap"><canvas id="chartWeekly"></canvas></div></div>
+    <div class="card"><div class="card-title">🍩 Workout Types</div><div class="chart-wrap"><canvas id="chartTypes"></canvas></div></div>
+  </div>
+  <div class="card animate-in"><div class="card-title">📈 Calories Burned — Last 7 Workouts</div><div class="chart-wrap"><canvas id="chartCals"></canvas></div></div>
+  <div class="feedback-banner animate-in" id="feedback-banner">
+    <div class="feedback-banner-title">💬 LATEST FEEDBACK</div>
+    <div id="feedback-banner-text" style="font-size:14px;color:rgba(255,255,255,.6)"></div>
+  </div>
+</div>
+
+<!-- LOG WORKOUT -->
+<div id="page-log" class="page">
+  <div class="grid-2">
+    <div class="card animate-in">
+      <div class="card-title">🏋️ Log a Workout</div>
+      <div class="form-group"><label>Exercise Name</label><input type="text" id="ex-name" placeholder="e.g. Morning Run, Bench Press..."></div>
+      <div class="form-group"><label>Workout Type</label>
+        <select id="ex-type">
+          <option value="Cardio">🏃 Cardio</option>
+          <option value="Strength">🏋️ Strength</option>
+          <option value="Flexibility">🧘 Flexibility</option>
+          <option value="HIIT">⚡ HIIT</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Duration (minutes)</label><input type="number" id="ex-duration" placeholder="e.g. 30" min="1" max="300"></div>
+      <div class="form-group"><label>Calories Burned (estimate)</label><input type="number" id="ex-cals" placeholder="e.g. 250" min="0"></div>
+      <div class="form-group"><label>Date</label><input type="date" id="ex-date"></div>
+      <div class="form-group"><label>Notes (optional)</label><textarea id="ex-notes" rows="3" placeholder="How did it feel? Any personal bests?"></textarea></div>
+      <button class="btn" id="log-btn" onclick="logWorkout()">✓ Log Workout</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card animate-in" style="animation-delay:.1s">
+        <div class="card-title">💡 Quick Tip</div>
+        <div class="tip-box" id="quick-tip"></div>
+      </div>
+      <div class="card animate-in" style="animation-delay:.2s">
+        <div class="card-title">🔥 Calorie Estimator</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;text-transform:uppercase;letter-spacing:1px">Approx. per 30 min / 70kg</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)"><span>🏃 Running</span><span style="color:var(--accent);font-weight:600">~300 cal</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)"><span>🚴 Cycling</span><span style="color:var(--accent);font-weight:600">~250 cal</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)"><span>🏋️ Weights</span><span style="color:var(--accent);font-weight:600">~180 cal</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)"><span>⚡ HIIT</span><span style="color:var(--accent);font-weight:600">~350 cal</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)"><span>🧘 Yoga</span><span style="color:var(--accent);font-weight:600">~120 cal</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div id="page-history" class="page">
+  <div class="card animate-in">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div class="card-title" style="margin-bottom:0">📋 Workout History</div>
+      <select id="filter-type" onchange="renderHistory()" style="width:auto;padding:8px 14px;font-size:13px;border-radius:10px">
+        <option value="All">All Types</option>
+        <option value="Cardio">Cardio</option>
+        <option value="Strength">Strength</option>
+        <option value="Flexibility">Flexibility</option>
+        <option value="HIIT">HIIT</option>
+      </select>
+    </div>
+    <div id="history-table-wrap"><div class="empty"><span class="icon">📋</span><p>No workouts yet — log one!</p></div></div>
+  </div>
+</div>
+
+<!-- GOALS -->
+<div id="page-goals" class="page">
+  <div class="grid-2">
+    <div class="card animate-in">
+      <div class="card-title">🎯 Set a New Goal</div>
+      <div class="form-group"><label>Goal Name</label><input type="text" id="goal-name" placeholder="e.g. Run 20km, 20 workouts..."></div>
+      <div class="form-group"><label>Target Value</label><input type="number" id="goal-target" placeholder="e.g. 20" min="1"></div>
+      <div class="form-group"><label>Unit</label><input type="text" id="goal-unit" placeholder="e.g. workouts, km, kg..."></div>
+      <div class="form-group"><label>Current Progress</label><input type="number" id="goal-current" placeholder="0" min="0"></div>
+      <button class="btn" onclick="addGoal()">+ Add Goal</button>
+    </div>
+    <div class="card animate-in" style="animation-delay:.1s">
+      <div class="card-title">🏆 Your Goals</div>
+      <div id="goals-list"><div class="empty"><span class="icon">🎯</span><p>No goals yet.</p></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- FEEDBACK -->
+<div id="page-feedback" class="page">
+  <div class="grid-2">
+    <div class="card animate-in">
+      <div class="card-title">✍️ Leave Feedback</div>
+      <div class="form-group"><label>Your Name</label><input type="text" id="fb-name" placeholder="e.g. Alex"></div>
+      <div class="form-group"><label>Rating</label>
+        <div class="star-input" id="star-input">
+          <span onclick="setStars(1)">★</span><span onclick="setStars(2)">★</span>
+          <span onclick="setStars(3)">★</span><span onclick="setStars(4)">★</span><span onclick="setStars(5)">★</span>
+        </div>
+      </div>
+      <div class="form-group"><label>How is TrackFit helping you?</label><textarea id="fb-text" rows="4" placeholder="Tell us what's working..."></textarea></div>
+      <div class="form-group"><label>Feature you'd love next</label>
+        <select id="fb-feature">
+          <option>Social sharing</option><option>Workout plans</option>
+          <option>Nutrition tracking</option><option>Wearable sync</option><option>Video tutorials</option>
+        </select>
+      </div>
+      <button class="btn" onclick="submitFeedback()">Submit Feedback</button>
+    </div>
+    <div class="card animate-in" style="animation-delay:.1s">
+      <div class="card-title">💬 User Feedback</div>
+      <div id="feedback-list"><div class="empty"><span class="icon">💬</span><p>No feedback yet.</p></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let workouts  = [];
+let goals     = [];
+let feedbacks = [];
+let selectedStars = 0;
+
+const tips = [
+  "💧 Stay hydrated — drink water before, during and after every workout.",
+  "😴 Rest days are just as important as training. Muscles grow while you rest.",
+  "🎯 Set SMART goals: Specific, Measurable, Achievable, Relevant, Time-bound.",
+  "🧘 Always warm up for 5–10 minutes to prevent injuries.",
+  "📈 Progressive overload: gradually increase weight or reps each week.",
+  "🥗 Protein within 30 minutes post-workout helps muscle recovery.",
+  "🏃 Consistency beats intensity. 4 moderate sessions beats 1 brutal one.",
+];
+
+// ═══════════════════════════════════════════════════════════
+// API HELPERS
+// ═══════════════════════════════════════════════════════════
+async function api(path, method = 'GET', body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || 'API error');
+  }
+  return res.json();
+}
+
+// ═══════════════════════════════════════════════════════════
+// BOOT — load all data from DB on page load
+// ═══════════════════════════════════════════════════════════
+async function boot() {
+  try {
+    [workouts, goals, feedbacks] = await Promise.all([
+      api('/api/workouts'),
+      api('/api/goals'),
+      api('/api/feedbacks'),
+    ]);
+    // Normalise types from postgres (numeric strings → numbers)
+    workouts  = workouts.map(w => ({ ...w, duration: +w.duration, cals: +w.cals }));
+    goals     = goals.map(g  => ({ ...g, target: +g.target, current: +g.current }));
+    feedbacks = feedbacks.map(f => ({ ...f, stars: +f.stars }));
+  } catch (e) {
+    console.error('Boot error:', e);
+    toast('⚠️ Could not connect to database');
+  }
+  document.getElementById('loading-overlay').classList.add('hidden');
+  document.getElementById('ex-date').valueAsDate = new Date();
+  document.getElementById('quick-tip').textContent = tips[Math.floor(Math.random() * tips.length)];
+  updateDashboard();
+  renderHistory();
+  renderGoals();
+  renderFeedback();
+}
+
+// ═══════════════════════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.remove('active');
+    p.querySelectorAll('.animate-in').forEach(el => { el.style.animation = 'none'; el.offsetHeight; el.style.animation = ''; });
+  });
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  ['dashboard','log','history','goals','feedback'].forEach((name, i) => {
+    if (name === id) document.querySelectorAll('.nav-tab')[i].classList.add('active');
+  });
+  if (id === 'log') document.getElementById('quick-tip').textContent = tips[Math.floor(Math.random() * tips.length)];
+  if (id === 'dashboard') updateDashboard();
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// COUNTER ANIMATION
+// ═══════════════════════════════════════════════════════════
+function animateCount(el, target) {
+  const duration = 900, start = performance.now();
+  function update(now) {
+    const p = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(target * ease);
+    if (p < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOG WORKOUT
+// ═══════════════════════════════════════════════════════════
+async function logWorkout() {
+  const name     = document.getElementById('ex-name').value.trim();
+  const type     = document.getElementById('ex-type').value.replace(/[^\w]/g,'');
+  const duration = parseInt(document.getElementById('ex-duration').value);
+  const cals     = parseInt(document.getElementById('ex-cals').value) || 0;
+  const date     = document.getElementById('ex-date').value;
+  const notes    = document.getElementById('ex-notes').value.trim();
+
+  if (!name)              return toast('⚠️ Enter an exercise name!');
+  if (!duration || duration < 1) return toast('⚠️ Enter a valid duration!');
+  if (!date)              return toast('⚠️ Pick a date!');
+
+  const btn = document.getElementById('log-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  try {
+    const workout = { id: Date.now(), name, type, duration, cals, date, notes };
+    await api('/api/workouts', 'POST', workout);
+    workouts.unshift(workout);
+    document.getElementById('ex-name').value    = '';
+    document.getElementById('ex-duration').value = '';
+    document.getElementById('ex-cals').value     = '';
+    document.getElementById('ex-notes').value    = '';
+    toast('✅ Workout saved to database!');
+    btn.textContent = '🎉 Saved!';
+    setTimeout(() => { btn.textContent = '✓ Log Workout'; btn.disabled = false; }, 1500);
+    updateDashboard();
+  } catch (e) {
+    toast('❌ Error saving: ' + e.message);
+    btn.textContent = '✓ Log Workout'; btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════════════════
+function renderHistory() {
+  const filter   = document.getElementById('filter-type')?.value || 'All';
+  const filtered = filter === 'All' ? workouts : workouts.filter(w => w.type === filter);
+  const wrap     = document.getElementById('history-table-wrap');
+  if (!filtered.length) {
+    wrap.innerHTML = '<div class="empty"><span class="icon">📋</span><p>No workouts found.</p></div>';
+    return;
+  }
+  wrap.innerHTML = `<table>
+    <thead><tr><th>Date</th><th>Exercise</th><th>Type</th><th>Duration</th><th>Calories</th><th>Notes</th><th></th></tr></thead>
+    <tbody>${filtered.map((w,i) => `
+      <tr style="animation:fadeUp .3s ${i*.04}s both">
+        <td style="color:var(--muted)">${formatDate(w.date)}</td>
+        <td style="font-weight:600">${w.name}</td>
+        <td><span class="badge badge-${w.type.toLowerCase()}">${w.type}</span></td>
+        <td>${w.duration} min</td>
+        <td>${w.cals ? w.cals+' cal' : '—'}</td>
+        <td style="color:var(--muted);font-size:13px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.notes||'—'}</td>
+        <td><button class="btn btn-sm btn-danger" onclick="deleteWorkout(${w.id})">Delete</button></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+async function deleteWorkout(id) {
+  try {
+    await api('/api/workouts?id=' + id, 'DELETE');
+    workouts = workouts.filter(w => w.id !== id);
+    renderHistory(); updateDashboard();
+    toast('🗑️ Workout deleted.');
+  } catch (e) { toast('❌ ' + e.message); }
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  const [y,m,day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// GOALS
+// ═══════════════════════════════════════════════════════════
+async function addGoal() {
+  const name    = document.getElementById('goal-name').value.trim();
+  const target  = parseFloat(document.getElementById('goal-target').value);
+  const unit    = document.getElementById('goal-unit').value.trim();
+  const current = parseFloat(document.getElementById('goal-current').value) || 0;
+  if (!name || !target || !unit) return toast('⚠️ Fill in all goal fields!');
+  try {
+    const goal = { id: Date.now(), name, target, unit, current };
+    await api('/api/goals', 'POST', goal);
+    goals.push(goal);
+    renderGoals();
+    document.getElementById('goal-name').value    = '';
+    document.getElementById('goal-target').value  = '';
+    document.getElementById('goal-unit').value    = '';
+    document.getElementById('goal-current').value = '';
+    toast('🎯 Goal saved to database!');
+  } catch (e) { toast('❌ ' + e.message); }
+}
+
+async function deleteGoal(id) {
+  try {
+    await api('/api/goals?id=' + id, 'DELETE');
+    goals = goals.filter(g => g.id !== id);
+    renderGoals(); toast('🗑️ Goal deleted.');
+  } catch (e) { toast('❌ ' + e.message); }
+}
+
+async function updateGoalProgress(id, delta) {
+  const g = goals.find(g => g.id === id);
+  if (!g) return;
+  g.current = Math.max(0, Math.min(g.target, g.current + delta));
+  try {
+    await api('/api/goals?id=' + id, 'PUT', { current: g.current });
+    renderGoals();
+    if (g.current >= g.target) toast(`🏆 Goal "${g.name}" completed!`);
+  } catch (e) { toast('❌ ' + e.message); }
+}
+
+function renderGoals() {
+  const el = document.getElementById('goals-list');
+  if (!goals.length) { el.innerHTML = '<div class="empty"><span class="icon">🎯</span><p>No goals yet.</p></div>'; return; }
+  el.innerHTML = goals.map((g,i) => {
+    const pct = Math.min(100, (g.current / g.target) * 100);
+    const cls = pct >= 100 ? 'success' : pct < 30 ? 'danger' : '';
+    return `<div class="goal-item" style="animation-delay:${i*.08}s">
+      <div class="goal-header">
+        <span style="font-weight:700">${g.name}</span>
+        <span style="color:var(--muted);font-size:13px">${g.current} / ${g.target} ${g.unit}</span>
+      </div>
+      <div class="goal-bar-bg"><div class="goal-bar-fill ${cls}" style="width:${pct}%"></div></div>
+      <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
+        <button class="btn btn-sm btn-outline" onclick="updateGoalProgress(${g.id},-1)">−</button>
+        <button class="btn btn-sm" onclick="updateGoalProgress(${g.id},1)">+</button>
+        <span style="font-size:13px;color:var(--muted);margin-left:6px">${pct.toFixed(0)}%${pct>=100?' 🏆':''}</span>
+        <button class="btn btn-sm btn-danger" onclick="deleteGoal(${g.id})" style="margin-left:auto">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// FEEDBACK
+// ═══════════════════════════════════════════════════════════
+function setStars(n) {
+  selectedStars = n;
+  document.querySelectorAll('.star-input span').forEach((s,i) => s.classList.toggle('lit', i < n));
+}
+
+async function submitFeedback() {
+  const name    = document.getElementById('fb-name').value.trim();
+  const text    = document.getElementById('fb-text').value.trim();
+  const feature = document.getElementById('fb-feature').value;
+  if (!name)          return toast('⚠️ Enter your name!');
+  if (!selectedStars) return toast('⚠️ Select a star rating!');
+  if (!text)          return toast('⚠️ Write some feedback!');
+  try {
+    const fb = { id: Date.now(), name, stars: selectedStars, text, feature,
+                 date: new Date().toISOString().split('T')[0] };
+    await api('/api/feedbacks', 'POST', fb);
+    feedbacks.unshift(fb);
+    renderFeedback();
+    document.getElementById('fb-name').value = '';
+    document.getElementById('fb-text').value = '';
+    setStars(0);
+    toast('💬 Feedback saved to database!');
+  } catch (e) { toast('❌ ' + e.message); }
+}
+
+function renderFeedback() {
+  const el = document.getElementById('feedback-list');
+  if (!feedbacks.length) { el.innerHTML = '<div class="empty"><span class="icon">💬</span><p>No feedback yet.</p></div>'; return; }
+  el.innerHTML = feedbacks.map((f,i) => `
+    <div class="feedback-card" style="animation-delay:${i*.07}s">
+      <div class="feedback-meta">
+        <span class="feedback-name">${f.name}</span>
+        <span class="feedback-date">${formatDate(f.date)}</span>
+      </div>
+      <div class="stars">${Array.from({length:5},(_,j)=>`<span class="${j<f.stars?'lit':'dim'}">★</span>`).join('')}</div>
+      <div class="feedback-text">${f.text}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">Wants next: ${f.feature}</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD + CHARTS
+// ═══════════════════════════════════════════════════════════
+let chartWeekly, chartTypes, chartCals;
+
+function updateDashboard() {
+  const total     = workouts.length;
+  const totalMins = workouts.reduce((a,w) => a + w.duration, 0);
+  const totalCals = workouts.reduce((a,w) => a + w.cals, 0);
+
+  // Streak
+  const today = new Date(); today.setHours(0,0,0,0);
+  const uniqueDates = [...new Set(workouts.map(w => w.date))].sort().reverse();
+  let streak = 0, check = new Date(today);
+  for (const d of uniqueDates) {
+    const wd = new Date(d + 'T00:00:00');
+    if (wd.getTime() === check.getTime()) { streak++; check.setDate(check.getDate()-1); }
+    else if (wd < check) break;
+  }
+
+  // This week (Mon–Sun)
+  const weekStart = new Date(today);
+  const day = today.getDay(); // 0=Sun
+  weekStart.setDate(today.getDate() - ((day + 6) % 7)); // Monday
+  weekStart.setHours(0,0,0,0);
+  const thisWeek = workouts.filter(w => new Date(w.date + 'T00:00:00') >= weekStart).length;
+
+  // Favourite type
+  const typeCounts = {};
+  workouts.forEach(w => typeCounts[w.type] = (typeCounts[w.type]||0)+1);
+  const fav = Object.entries(typeCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || '—';
+
+  animateCount(document.getElementById('hero-streak'), streak);
+  animateCount(document.getElementById('hero-total'), total);
+  animateCount(document.getElementById('hero-mins'), totalMins);
+  animateCount(document.getElementById('stat-week'), thisWeek);
+  animateCount(document.getElementById('stat-cals'), totalCals);
+  animateCount(document.getElementById('stat-avg'), total ? Math.round(totalMins/total) : 0);
+  document.getElementById('stat-fav').textContent = fav;
+
+  const msgs = ["Keep pushing — every rep counts.","You're on a roll! 💪",
+    "Consistency is your superpower.","Champions are built one session at a time."];
+  document.getElementById('hero-subtitle').textContent = msgs[Math.floor(Math.random()*msgs.length)];
+
+  if (feedbacks.length) {
+    document.getElementById('feedback-banner').style.display = 'block';
+    const f = feedbacks[0];
+    document.getElementById('feedback-banner-text').innerHTML =
+      `<strong>${f.name}</strong> rated ${f.stars}/5 ★ — "${f.text}"`;
+  }
+
+  buildCharts();
+}
+
+function buildCharts() {
+  const cOpts = { responsive:true, maintainAspectRatio:false, animation:{ duration:1000, easing:'easeOutQuart' } };
+
+  // ── WEEKLY ACTIVITY — correctly maps each of the last 7 days ──
+  const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Build a map: "YYYY-MM-DD" → total minutes that day
+  const dailyMins = {};
+  workouts.forEach(w => {
+    dailyMins[w.date] = (dailyMins[w.date] || 0) + w.duration;
+  });
+
+  const weekLabels = [], weekData = [], weekColors = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const iso = d.toISOString().split('T')[0];
+    const mins = dailyMins[iso] || 0;
+    weekLabels.push(DAY_NAMES[d.getDay()]);
+    weekData.push(mins);
+    // Highlight today in brighter colour
+    weekColors.push(i === 0
+      ? 'rgba(124,107,255,1)'
+      : mins > 0 ? 'rgba(124,107,255,0.75)' : 'rgba(124,107,255,0.2)');
+  }
+
+  if (chartWeekly) chartWeekly.destroy();
+  chartWeekly = new Chart(document.getElementById('chartWeekly').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: weekLabels,
+      datasets: [{
+        label: 'Minutes',
+        data: weekData,
+        backgroundColor: weekColors,
+        borderRadius: 8,
+        borderSkipped: false,
+      }]
+    },
+    options: { ...cOpts,
+      plugins: { legend:{ display:false },
+        tooltip:{ callbacks:{ label: ctx => ` ${ctx.parsed.y} min` } } },
+      scales: {
+        x: { ticks:{color:'#888',font:{family:'Space Grotesk'}}, grid:{display:false}, border:{display:false} },
+        y: { ticks:{color:'#888',font:{family:'Space Grotesk'},stepSize:10},
+             grid:{color:'rgba(255,255,255,0.04)'}, border:{display:false}, beginAtZero:true,
+             title:{display:true,text:'minutes',color:'#555',font:{size:11}} }
+      }
+    }
+  });
+
+  // ── WORKOUT TYPES DOUGHNUT ──
+  const typeMap = { Cardio:0, Strength:0, Flexibility:0, HIIT:0 };
+  workouts.forEach(w => { if (typeMap[w.type] !== undefined) typeMap[w.type]++; });
+  if (chartTypes) chartTypes.destroy();
+  chartTypes = new Chart(document.getElementById('chartTypes').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(typeMap),
+      datasets: [{
+        data: Object.values(typeMap),
+        backgroundColor: ['rgba(96,165,250,.85)','rgba(255,107,157,.85)','rgba(61,255,192,.85)','rgba(124,107,255,.85)'],
+        borderWidth: 0, hoverOffset: 8,
+      }]
+    },
+    options: { ...cOpts, cutout:'68%',
+      plugins:{ legend:{ position:'bottom',
+        labels:{color:'rgba(255,255,255,.5)',padding:16,font:{family:'Space Grotesk',size:12},boxWidth:10,borderRadius:4} } }
+    }
+  });
+
+  // ── CALORIES LINE — last 7 workouts ──
+  const last7 = [...workouts].slice(0, 7).reverse();
+  if (chartCals) chartCals.destroy();
+  chartCals = new Chart(document.getElementById('chartCals').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: last7.map(w => w.name.slice(0,12)),
+      datasets: [{
+        label: 'Calories',
+        data: last7.map(w => w.cals),
+        borderColor: 'rgba(255,107,157,0.9)',
+        backgroundColor: ctx => {
+          const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
+          g.addColorStop(0,'rgba(255,107,157,0.25)');
+          g.addColorStop(1,'rgba(255,107,157,0.01)');
+          return g;
+        },
+        tension: 0.45, fill: true,
+        pointBackgroundColor: 'rgba(255,107,157,1)',
+        pointBorderColor: '#060610', pointBorderWidth: 2,
+        pointRadius: 6, pointHoverRadius: 9,
+      }]
+    },
+    options: { ...cOpts, plugins:{legend:{display:false}},
+      scales: {
+        x:{ticks:{color:'#888',font:{family:'Space Grotesk'}},grid:{display:false},border:{display:false}},
+        y:{ticks:{color:'#888',font:{family:'Space Grotesk'}},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false},beginAtZero:true}
+      }
+    }
+  });
+}
+
+// ── BOOT ──
+boot();
+</script>
+</body>
+</html>
