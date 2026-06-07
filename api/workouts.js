@@ -1,4 +1,11 @@
-import { sql } from '@vercel/postgres';
+//import { sql } from '@vercel/postgres';
+
+// Replace this line at the top of each API file:
+//import { sql } from '@vercel/postgres';
+
+// With these two lines:
+import { neon } from '@neondatabase/serverless';
+const sql = neon(process.env.DATABASE_URL);
 
 export default async function handler(req, res) {
   // Allow requests from any origin (CORS)
