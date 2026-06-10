@@ -1,6 +1,4 @@
-//import { sql } from '@vercel/postgres';
 import { neon } from '@neondatabase/serverless';
-const sql = neon(process.env.DATABASE_URL);
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -8,21 +6,27 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  if (!process.env.DATABASE_URL) {
+    return res.status(500).json({ error: 'DATABASE_URL environment variable is not set.' });
+  }
+
+  const sql = neon(process.env.DATABASE_URL);
+
   try {
     await sql`
       CREATE TABLE IF NOT EXISTS feedbacks (
-        id      BIGINT PRIMARY KEY,
-        name    TEXT NOT NULL,
-        stars   INTEGER NOT NULL,
-        text    TEXT NOT NULL,
-        feature TEXT DEFAULT '',
-        date    TEXT NOT NULL,
+        id         BIGINT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        stars      INTEGER NOT NULL,
+        text       TEXT NOT NULL,
+        feature    TEXT DEFAULT '',
+        date       TEXT NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `;
 
     if (req.method === 'GET') {
-      const { rows } = await sql`SELECT * FROM feedbacks ORDER BY created_at DESC`;
+      const rows = await sql`SELECT * FROM feedbacks ORDER BY created_at DESC`;
       return res.status(200).json(rows);
     }
 
@@ -31,7 +35,7 @@ export default async function handler(req, res) {
       if (!name || !stars || !text || !date) return res.status(400).json({ error: 'Missing fields' });
       await sql`
         INSERT INTO feedbacks (id, name, stars, text, feature, date)
-        VALUES (${id}, ${name}, ${stars}, ${text}, ${feature || ''}, ${date})
+        VALUES (${id}, ${name}, ${Number(stars)}, ${text}, ${feature || ''}, ${date})
       `;
       return res.status(201).json({ success: true });
     }

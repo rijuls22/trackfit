@@ -4,666 +4,1251 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TrackFit — Personal Fitness Tracker</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+<meta name="description" content="TrackFit: log workouts, track goals, and visualise your fitness progress.">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
-:root {
-  --bg:#060610;--surface:#0e0e1c;--card:#12121f;--card2:#161625;
-  --border:#1e1e35;--accent:#7c6bff;--accent2:#ff6b9d;--accent3:#00e5c4;
-  --yellow:#ffe566;--text:#eeeeff;--muted:#5a5a80;--green:#3dffc0;
-  --red:#ff5e7a;--glow:rgba(124,107,255,0.35);
+/* ── WCAG 2.2: focus-visible ring on every interactive element ── */
+:focus-visible {
+  outline: 3px solid #a78bfa;
+  outline-offset: 3px;
+  border-radius: 4px;
 }
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 
-/* BG */
-.bg-orbs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-.orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.18;animation:orbFloat 12s ease-in-out infinite alternate}
-.orb1{width:500px;height:500px;background:var(--accent);top:-150px;left:-100px;animation-duration:14s}
-.orb2{width:400px;height:400px;background:var(--accent2);bottom:-100px;right:-80px;animation-duration:11s;animation-delay:-4s}
-.orb3{width:300px;height:300px;background:var(--accent3);top:40%;left:40%;animation-duration:16s;animation-delay:-8s}
-@keyframes orbFloat{0%{transform:translate(0,0) scale(1)}100%{transform:translate(40px,30px) scale(1.08)}}
-body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
-  background-image:linear-gradient(rgba(124,107,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(124,107,255,.04) 1px,transparent 1px);
-  background-size:48px 48px}
+:root {
+  --bg:      #060610;
+  --surface: #0e0e1c;
+  --card:    #12121f;
+  --card2:   #161625;
+  --border:  #2a2a45;
+  --accent:  #7c6bff;
+  --accent2: #ff6b9d;
+  --accent3: #00e5c4;
+  --yellow:  #ffe566;
+  --text:    #eeeeff;
+  --muted:   #8888aa; /* ≥4.5:1 contrast on dark bg */
+  --green:   #3dffc0;
+  --red:     #ff5e7a;
+  --glow:    rgba(124,107,255,0.35);
+  /* min tap target 44×44px per WCAG 2.5.8 */
+  --tap: 44px;
+}
 
-/* NAV */
-nav{position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;
-  padding:0 36px;height:66px;background:rgba(6,6,16,.75);backdrop-filter:blur(20px);
-  border-bottom:1px solid rgba(124,107,255,.12);animation:slideDown .6s cubic-bezier(.16,1,.3,1) both}
-@keyframes slideDown{from{transform:translateY(-100%);opacity:0}to{transform:none;opacity:1}}
-.logo{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:3px;
+/* ── LIGHT MODE — indigo/purple tinted ── */
+html.light {
+  --bg:      #f0eeff;
+  --surface: #e8e3ff;
+  --card:    #ffffff;
+  --card2:   #f5f2ff;
+  --border:  #c4b8f8;
+  --accent:  #5b4ee8;
+  --accent2: #e0407a;
+  --accent3: #00a88a;
+  --yellow:  #c97d00;
+  --text:    #1a1640;
+  --muted:   #5a5285;   /* ≥4.5:1 on light bg */
+  --green:   #00836a;
+  --red:     #c0253f;
+  --glow:    rgba(91,78,232,0.2);
+}
+
+/* Smooth theme transition on everything except animations */
+html { transition: background-color .3s, color .3s; }
+body, .card, .stat-card, .feedback-card, .goal-item,
+nav, input, select, textarea, .toast { transition-property: background, background-color, border-color, color, box-shadow; transition-duration: .3s; }
+
+/* Light-specific overrides */
+html.light body::before {
+  background-image:
+    linear-gradient(rgba(91,78,232,.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(91,78,232,.05) 1px,transparent 1px);
+}
+html.light nav {
+  background: rgba(240,238,255,.92);
+  border-bottom-color: rgba(91,78,232,.2);
+}
+html.light .nav-tabs {
+  background: rgba(91,78,232,.06);
+  border-color: var(--border);
+}
+html.light .nav-tab:hover:not(.active) {
+  background: rgba(91,78,232,.1);
+  color: var(--text);
+}
+html.light .hero {
+  background: linear-gradient(135deg,#ddd8ff 0%,#ede8ff 50%,#d8e3ff 100%);
+  border-color: rgba(91,78,232,.3);
+  box-shadow: 0 0 40px rgba(91,78,232,.1);
+}
+html.light .hero::before {
+  background:
+    radial-gradient(ellipse at 20% 50%,rgba(91,78,232,.1) 0%,transparent 60%),
+    radial-gradient(ellipse at 80% 50%,rgba(224,64,122,.06) 0%,transparent 60%);
+}
+html.light .hero-left h1 {
+  background: linear-gradient(135deg,#1a1640,#3730a3);
+  -webkit-background-clip: text; background-clip: text;
+}
+html.light .hero-stat .val {
+  background: linear-gradient(135deg,#00836a,#5b4ee8);
+  -webkit-background-clip: text; background-clip: text;
+}
+html.light .hero-stat .lbl  { color: rgba(26,22,64,.5); }
+html.light .hero-divider     { background: rgba(91,78,232,.2); }
+html.light .stat-card        { box-shadow: 0 2px 12px rgba(91,78,232,.08); }
+html.light .stat-card:hover  { box-shadow: 0 8px 28px rgba(91,78,232,.18), 0 0 0 rgba(0,0,0,0); }
+html.light .card:hover       { border-color: rgba(91,78,232,.35); }
+html.light .quote-card {
+  background: linear-gradient(135deg,rgba(91,78,232,.1),rgba(224,64,122,.06));
+  border-color: rgba(91,78,232,.3);
+}
+html.light .quote-card::before { color: rgba(91,78,232,.12); }
+html.light .quote-text {
+  background: linear-gradient(135deg,#1a1640,#3730a3);
+  -webkit-background-clip: text; background-clip: text;
+}
+html.light input, html.light select, html.light textarea {
+  background: rgba(91,78,232,.05);
+  border-color: var(--border);
+  color: var(--text);
+}
+html.light input:focus, html.light select:focus, html.light textarea:focus {
+  background: rgba(91,78,232,.08);
+}
+html.light select option { background: #f0eeff; color: #1a1640; }
+html.light input::placeholder, html.light textarea::placeholder { color: var(--muted); }
+html.light td { border-bottom-color: rgba(91,78,232,.1); }
+html.light tbody tr:hover td { background: rgba(91,78,232,.05); }
+html.light th { border-bottom-color: var(--border); }
+html.light .badge-cardio     { background:rgba(59,130,246,.12); color:#1d4ed8; border-color:rgba(59,130,246,.3); }
+html.light .badge-strength   { background:rgba(224,64,122,.1);  color:#9d174d; border-color:rgba(224,64,122,.3); }
+html.light .badge-flexibility{ background:rgba(0,131,106,.12);  color:#065f46; border-color:rgba(0,131,106,.3); }
+html.light .badge-hiit       { background:rgba(91,78,232,.1);   color:#3730a3; border-color:rgba(91,78,232,.3); }
+html.light .feedback-text    { color: rgba(26,22,64,.7); }
+html.light .stars-display .dim { color: var(--border); }
+html.light .goal-bar-bg      { background: rgba(91,78,232,.12); }
+html.light .feedback-banner  {
+  background: linear-gradient(135deg,rgba(91,78,232,.08),rgba(224,64,122,.05));
+  border-color: rgba(91,78,232,.2);
+}
+html.light .toast {
+  background: rgba(255,255,255,.97);
+  border-color: rgba(91,78,232,.3);
+  color: #1a1640;
+  box-shadow: 0 4px 20px rgba(91,78,232,.15);
+}
+html.light .orb1, html.light .orb2, html.light .orb3 { opacity: .1; }
+html.light ::-webkit-scrollbar-track { background: #e8e3ff; }
+html.light ::-webkit-scrollbar-thumb { background: #c4b8f8; }
+
+/* ── THEME TOGGLE BUTTON ── */
+#theme-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 0 12px;
+  min-height: var(--tap);
+  min-width: var(--tap);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: background .2s, border-color .2s, color .2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+#theme-toggle:hover { background: rgba(124,107,255,.1); border-color: var(--accent); color: var(--text); }
+html.light #theme-toggle:hover { background: rgba(91,78,232,.1); }
+#theme-toggle .toggle-icon { font-size: 16px; line-height: 1; }
+#theme-toggle .toggle-label { display: none; }
+@media (min-width: 480px) { #theme-toggle .toggle-label { display: inline; } }
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; font-size:16px; }
+
+body {
+  font-family: 'Space Grotesk', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.5;
+}
+
+/* ── SKIP LINK (WCAG 2.4.1) ── */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 0 0 8px 8px;
+  font-weight: 700;
+  font-size: 14px;
+  z-index: 9999;
+  text-decoration: none;
+  transition: top .2s;
+}
+.skip-link:focus { top: 0; }
+
+/* ── ANIMATED BG ── */
+.bg-orbs { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+.orb { position:absolute; border-radius:50%; filter:blur(80px); opacity:.15;
+  animation:orbFloat 12s ease-in-out infinite alternate; }
+.orb1 { width:500px; height:500px; background:var(--accent);  top:-150px; left:-100px; animation-duration:14s; }
+.orb2 { width:400px; height:400px; background:var(--accent2); bottom:-100px; right:-80px; animation-duration:11s; animation-delay:-4s; }
+.orb3 { width:300px; height:300px; background:var(--accent3); top:40%; left:40%; animation-duration:16s; animation-delay:-8s; }
+@keyframes orbFloat { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,30px) scale(1.08)} }
+
+body::before {
+  content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image:
+    linear-gradient(rgba(124,107,255,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(124,107,255,.03) 1px,transparent 1px);
+  background-size:48px 48px;
+}
+
+/* ── LOADING ── */
+#loading-overlay {
+  position:fixed; inset:0; z-index:9999; background:var(--bg);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;
+  transition:opacity .5s;
+}
+#loading-overlay.hidden { opacity:0; pointer-events:none; }
+.spinner { width:48px; height:48px; border:3px solid var(--border); border-top-color:var(--accent);
+  border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.loading-text { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+/* ── NAV ── */
+nav {
+  position:sticky; top:0; z-index:200;
+  background:rgba(6,6,16,.9); backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(124,107,255,.15);
+}
+.nav-inner {
+  max-width:1140px; margin:0 auto; padding:0 24px;
+  display:flex; align-items:center; justify-content:space-between; min-height:66px;
+  gap:16px; flex-wrap:wrap;
+}
+.logo {
+  font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:3px;
   background:linear-gradient(135deg,var(--accent),var(--accent2),var(--accent3));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  filter:drop-shadow(0 0 20px var(--glow));animation:logoGlow 3s ease-in-out infinite alternate}
-@keyframes logoGlow{from{filter:drop-shadow(0 0 10px var(--glow))}to{filter:drop-shadow(0 0 28px rgba(124,107,255,.6))}}
-.nav-tabs{display:flex;gap:2px;background:rgba(255,255,255,.04);padding:4px;border-radius:12px;border:1px solid var(--border)}
-.nav-tab{padding:8px 18px;border-radius:9px;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;
-  font-size:13.5px;font-weight:500;background:transparent;color:var(--muted);transition:all .25s cubic-bezier(.4,0,.2,1);
-  position:relative;overflow:hidden}
-.nav-tab::before{content:'';position:absolute;inset:0;border-radius:9px;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));opacity:0;transition:opacity .25s}
-.nav-tab.active{color:#fff}.nav-tab.active::before{opacity:1}
-.nav-tab span{position:relative;z-index:1}
-.nav-tab:hover:not(.active){color:var(--text);background:rgba(255,255,255,.06)}
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  white-space:nowrap;
+}
+.nav-tabs {
+  display:flex; gap:2px; flex-wrap:wrap;
+  background:rgba(255,255,255,.04); padding:4px; border-radius:12px; border:1px solid var(--border);
+}
+.nav-tab {
+  padding:8px 14px; min-height:var(--tap); border-radius:9px; border:none; cursor:pointer;
+  font-family:'Space Grotesk',sans-serif; font-size:13px; font-weight:500;
+  background:transparent; color:var(--muted); transition:all .2s; position:relative; overflow:hidden;
+  display:flex; align-items:center;
+}
+.nav-tab::before {
+  content:''; position:absolute; inset:0; border-radius:9px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2)); opacity:0; transition:opacity .2s;
+}
+.nav-tab.active { color:#fff; }
+.nav-tab.active::before { opacity:1; }
+.nav-tab span { position:relative; z-index:1; }
+.nav-tab:hover:not(.active) { color:var(--text); background:rgba(255,255,255,.06); }
+/* WCAG 2.4.3: current page aria */
+.nav-tab[aria-current="page"] { color:#fff; }
+.nav-tab[aria-current="page"]::before { opacity:1; }
 
-/* LOADING OVERLAY */
-#loading-overlay{position:fixed;inset:0;z-index:9999;background:var(--bg);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
-  transition:opacity .5s}
-#loading-overlay.hidden{opacity:0;pointer-events:none}
-.spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);
-  border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading-text{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-
-/* PAGES */
-.page{display:none;padding:36px;max-width:1140px;margin:0 auto;position:relative;z-index:1}
-.page.active{display:block}
-.page.active .animate-in{animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both}
+/* ── PAGES ── */
+.page { display:none; padding:32px 24px; max-width:1140px; margin:0 auto; position:relative; z-index:1; }
+.page.active { display:block; }
+.page.active .animate-in { animation:fadeUp .45s cubic-bezier(.16,1,.3,1) both; }
 .page.active .animate-in:nth-child(1){animation-delay:.05s}
-.page.active .animate-in:nth-child(2){animation-delay:.12s}
-.page.active .animate-in:nth-child(3){animation-delay:.19s}
-.page.active .animate-in:nth-child(4){animation-delay:.26s}
-@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+.page.active .animate-in:nth-child(2){animation-delay:.1s}
+.page.active .animate-in:nth-child(3){animation-delay:.15s}
+.page.active .animate-in:nth-child(4){animation-delay:.2s}
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
 
-/* HERO */
-.hero{border-radius:22px;padding:36px 42px;margin-bottom:28px;
+/* ── HERO ── */
+.hero {
+  border-radius:20px; padding:32px 36px; margin-bottom:24px;
   background:linear-gradient(135deg,#1a0f3c 0%,#1f0a2e 40%,#0f1a3c 100%);
-  border:1px solid rgba(124,107,255,.25);display:flex;align-items:center;
-  justify-content:space-between;gap:24px;position:relative;overflow:hidden;
-  box-shadow:0 0 60px rgba(124,107,255,.12),inset 0 1px 0 rgba(255,255,255,.06)}
-.hero::before{content:'';position:absolute;inset:0;
-  background:radial-gradient(ellipse at 20% 50%,rgba(124,107,255,.15) 0%,transparent 60%),
-             radial-gradient(ellipse at 80% 50%,rgba(255,107,157,.1) 0%,transparent 60%)}
-.hero::after{content:'TRACKFIT';position:absolute;right:-20px;top:50%;transform:translateY(-50%);
-  font-family:'Bebas Neue',sans-serif;font-size:160px;letter-spacing:8px;
-  color:rgba(255,255,255,.025);pointer-events:none;white-space:nowrap}
-.hero-left{position:relative;z-index:1}
-.hero-left h1{font-family:'Bebas Neue',sans-serif;font-size:56px;line-height:1;
-  background:linear-gradient(135deg,#fff 0%,rgba(255,255,255,.7) 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.hero-left p{color:rgba(255,255,255,.45);font-size:14px;margin-top:8px}
-.hero-stats{display:flex;gap:36px;position:relative;z-index:1}
-.hero-stat{text-align:center}
-.hero-stat .val{font-family:'Bebas Neue',sans-serif;font-size:52px;line-height:1;
+  border:1px solid rgba(124,107,255,.25);
+  display:flex; align-items:center; justify-content:space-between; gap:24px;
+  position:relative; overflow:hidden;
+  box-shadow:0 0 60px rgba(124,107,255,.1),inset 0 1px 0 rgba(255,255,255,.05);
+}
+.hero::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(ellipse at 20% 50%,rgba(124,107,255,.12) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 50%,rgba(255,107,157,.08) 0%,transparent 60%);
+}
+.hero-left { position:relative; z-index:1; flex:1; min-width:0; }
+.hero-left h1 {
+  font-family:'Bebas Neue',sans-serif; font-size:clamp(36px,5vw,56px); line-height:1;
+  background:linear-gradient(135deg,#fff,rgba(255,255,255,.75));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+}
+.hero-stats { display:flex; gap:28px; position:relative; z-index:1; flex-shrink:0; flex-wrap:wrap; }
+.hero-stat { text-align:center; }
+.hero-stat .val {
+  font-family:'Bebas Neue',sans-serif; font-size:clamp(36px,4vw,52px); line-height:1;
   background:linear-gradient(135deg,var(--accent3),var(--accent));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.hero-stat .lbl{font-size:11px;color:rgba(255,255,255,.4);font-weight:600;text-transform:uppercase;letter-spacing:1.5px;margin-top:4px}
-.hero-divider{width:1px;background:rgba(255,255,255,.1);height:60px;align-self:center}
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+}
+.hero-stat .lbl {
+  font-size:11px; color:rgba(255,255,255,.5); font-weight:600;
+  text-transform:uppercase; letter-spacing:1.5px; margin-top:4px;
+}
+.hero-divider { width:1px; background:rgba(255,255,255,.1); height:50px; align-self:center; }
 
-/* STAT CARDS */
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-.stat-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px;
-  position:relative;overflow:hidden;transition:transform .3s cubic-bezier(.4,0,.2,1),box-shadow .3s,border-color .3s;cursor:default}
-.stat-card:hover{transform:translateY(-4px);border-color:rgba(124,107,255,.4);
-  box-shadow:0 16px 40px rgba(0,0,0,.4),0 0 20px var(--glow)}
-.stat-card .glow-blob{position:absolute;width:100px;height:100px;border-radius:50%;
-  filter:blur(40px);opacity:.25;top:-20px;right:-20px;transition:opacity .3s}
-.stat-card:hover .glow-blob{opacity:.45}
-.stat-card.c1 .glow-blob{background:var(--accent)}.stat-card.c2 .glow-blob{background:var(--accent2)}
-.stat-card.c3 .glow-blob{background:var(--green)}.stat-card.c4 .glow-blob{background:#60a5fa}
-.stat-card::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
-  background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0;transition:opacity .3s}
-.stat-card.c2::before{background:linear-gradient(90deg,transparent,var(--accent2),transparent)}
-.stat-card.c3::before{background:linear-gradient(90deg,transparent,var(--green),transparent)}
-.stat-card.c4::before{background:linear-gradient(90deg,transparent,#60a5fa,transparent)}
-.stat-card:hover::before{opacity:1}
-.stat-icon{font-size:26px;margin-bottom:10px;display:block}
-.stat-num{font-family:'Bebas Neue',sans-serif;font-size:42px;line-height:1;margin-bottom:4px;position:relative;z-index:1}
-.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:600}
+/* ── STAT CARDS ── */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+.stat-card {
+  background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px;
+  position:relative; overflow:hidden;
+  transition:transform .3s cubic-bezier(.4,0,.2,1),box-shadow .3s,border-color .3s;
+}
+.stat-card:hover { transform:translateY(-3px); border-color:rgba(124,107,255,.4);
+  box-shadow:0 12px 32px rgba(0,0,0,.4),0 0 16px var(--glow); }
+.stat-card .glow-blob { position:absolute; width:90px; height:90px; border-radius:50%;
+  filter:blur(36px); opacity:.2; top:-16px; right:-16px; transition:opacity .3s; pointer-events:none; }
+.stat-card:hover .glow-blob { opacity:.4; }
+.stat-card.c1 .glow-blob{background:var(--accent)}
+.stat-card.c2 .glow-blob{background:var(--accent2)}
+.stat-card.c3 .glow-blob{background:var(--green)}
+.stat-card.c4 .glow-blob{background:#60a5fa}
+.stat-card::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent); opacity:0; transition:opacity .3s;
+}
+.stat-card.c2::after{background:linear-gradient(90deg,transparent,var(--accent2),transparent)}
+.stat-card.c3::after{background:linear-gradient(90deg,transparent,var(--green),transparent)}
+.stat-card.c4::after{background:linear-gradient(90deg,transparent,#60a5fa,transparent)}
+.stat-card:hover::after { opacity:1; }
+.stat-icon { font-size:24px; margin-bottom:8px; display:block; }
+.stat-num { font-family:'Bebas Neue',sans-serif; font-size:38px; line-height:1; margin-bottom:4px; }
+.stat-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1.2px; font-weight:600; }
 
-/* GRID + CARD */
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:26px;
-  position:relative;overflow:hidden;transition:border-color .3s}
-.card:hover{border-color:rgba(124,107,255,.2)}
-.card-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:20px;
+/* ── GRID ── */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+
+/* ── CARD ── */
+.card {
+  background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px;
+  position:relative; overflow:hidden; transition:border-color .3s;
+}
+.card:hover { border-color:rgba(124,107,255,.2); }
+.card-title {
+  font-family:'Bebas Neue',sans-serif; font-size:17px; letter-spacing:2px; margin-bottom:18px;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+}
 
-/* FORM */
-.form-group{margin-bottom:16px}
-label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:7px}
-input,select,textarea{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);
-  border-radius:10px;padding:11px 14px;color:var(--text);font-family:'Space Grotesk',sans-serif;
-  font-size:14px;transition:border-color .2s,box-shadow .2s,background .2s}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
-  background:rgba(124,107,255,.06);box-shadow:0 0 0 3px rgba(124,107,255,.12)}
-select option{background:#0e0e1c}
-textarea{resize:vertical}
+/* ── MOTIVATIONAL QUOTE CARD ── */
+.quote-card {
+  background: linear-gradient(135deg, rgba(124,107,255,.12), rgba(255,107,157,.08));
+  border: 1px solid rgba(124,107,255,.3);
+  border-radius: 16px; padding: 24px; margin-bottom: 20px;
+  position: relative; overflow: hidden;
+}
+.quote-card::before {
+  content: '\201C';
+  position: absolute; top: -10px; left: 14px;
+  font-family: Georgia, serif; font-size: 100px; line-height: 1;
+  color: rgba(124,107,255,.15); pointer-events: none;
+}
+/* ── LOGO — light mode override ── */
+html.light .logo {
+  background: linear-gradient(135deg, #3730a3, #5b4ee8, #7c3aed);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  filter: drop-shadow(0 1px 2px rgba(55,48,163,.25));
+}
 
-/* BUTTONS */
-.btn{width:100%;padding:13px;border-radius:12px;border:none;cursor:pointer;
-  font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;
-  transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
-.btn::after{content:'';position:absolute;inset:0;
-  background:linear-gradient(135deg,rgba(255,255,255,.15),transparent);opacity:0;transition:opacity .2s}
-.btn:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(124,107,255,.4)}
-.btn:hover::after{opacity:1}.btn:active{transform:translateY(0)}
-.btn-outline{background:transparent;border:1px solid var(--accent);color:var(--accent);background:rgba(124,107,255,.08)}
-.btn-outline:hover{background:rgba(124,107,255,.2);box-shadow:0 0 20px rgba(124,107,255,.2)}
-.btn-sm{width:auto;padding:6px 14px;font-size:12px;border-radius:8px}
-.btn-danger{background:linear-gradient(135deg,var(--red),#c0392b)}
-.btn-danger:hover{box-shadow:0 8px 24px rgba(255,94,122,.4)}
-.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+/* ── QUOTE AUTHOR ── */
+.quote-author {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 12px;
+  letter-spacing: 0.5px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+html.light .quote-author {
+  background: linear-gradient(135deg, #3730a3, #be185d);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
 
-/* TABLE */
-table{width:100%;border-collapse:collapse;font-size:14px}
-th{text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;letter-spacing:1.2px;
-  color:var(--muted);border-bottom:1px solid var(--border)}
-td{padding:13px 14px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
-tr:last-child td{border-bottom:none}
-tr{transition:background .15s}
-tr:hover td{background:rgba(124,107,255,.04)}
+.quote-text {
+  font-size: clamp(16px,2.5vw,22px); font-weight: 600; line-height: 1.5;
+  background: linear-gradient(135deg, #fff, rgba(255,255,255,.8));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  position: relative; z-index: 1;
+}
+.quote-label {
+  font-size: 11px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 1.5px; margin-top: 10px; font-weight: 600;
+}
 
-/* BADGES */
-.badge{display:inline-block;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:600}
-.badge-cardio{background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.2)}
-.badge-strength{background:rgba(255,107,157,.15);color:var(--accent2);border:1px solid rgba(255,107,157,.2)}
-.badge-flexibility{background:rgba(61,255,192,.15);color:var(--green);border:1px solid rgba(61,255,192,.2)}
-.badge-hiit{background:rgba(124,107,255,.15);color:var(--accent);border:1px solid rgba(124,107,255,.2)}
+/* ── FORM ── */
+.form-group { margin-bottom:14px; }
+label {
+  display:block; font-size:12px; font-weight:600; text-transform:uppercase;
+  letter-spacing:1px; color:var(--muted); margin-bottom:6px;
+}
+input, select, textarea {
+  width:100%; background:rgba(255,255,255,.05); border:1px solid var(--border);
+  border-radius:10px; padding:11px 14px; color:var(--text);
+  font-family:'Space Grotesk',sans-serif; font-size:15px;
+  transition:border-color .2s,box-shadow .2s,background .2s;
+  min-height:var(--tap); /* WCAG 2.5.8 */
+}
+input:focus, select:focus, textarea:focus {
+  outline:none; border-color:var(--accent);
+  background:rgba(124,107,255,.07); box-shadow:0 0 0 3px rgba(124,107,255,.15);
+}
+input::placeholder, textarea::placeholder { color:var(--muted); }
+select option { background:#0e0e1c; color:var(--text); }
+textarea { resize:vertical; min-height:80px; }
+/* Error state */
+input[aria-invalid="true"], textarea[aria-invalid="true"] {
+  border-color:#ff5e7a; box-shadow:0 0 0 3px rgba(255,94,122,.15);
+}
+.field-error { font-size:12px; color:#ff8fa3; margin-top:4px; display:none; }
+.field-error.show { display:block; }
 
-/* FEEDBACK */
-.feedback-card{background:var(--card2);border:1px solid var(--border);border-radius:14px;
-  padding:20px;margin-bottom:14px;transition:border-color .2s,transform .2s;animation:fadeUp .4s both}
-.feedback-card:hover{border-color:rgba(124,107,255,.3);transform:translateX(4px)}
-.feedback-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.feedback-name{font-weight:700;font-size:15px}
-.feedback-date{font-size:12px;color:var(--muted)}
-.stars{font-size:16px;margin-bottom:8px}
-.stars .lit{color:var(--yellow)}.stars .dim{color:var(--border)}
-.feedback-text{font-size:14px;color:rgba(255,255,255,.6);line-height:1.7}
+/* ── BUTTONS ── */
+.btn {
+  width:100%; padding:13px 20px; border-radius:12px; border:none; cursor:pointer;
+  font-family:'Space Grotesk',sans-serif; font-size:15px; font-weight:700;
+  background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff;
+  transition:all .2s cubic-bezier(.4,0,.2,1);
+  min-height:var(--tap); /* WCAG 2.5.8 */
+  position:relative; display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 10px 28px rgba(124,107,255,.4); }
+.btn:active:not(:disabled) { transform:translateY(0); }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn-outline {
+  background:transparent; border:1px solid var(--accent); color:var(--accent);
+}
+.btn-outline:hover:not(:disabled) { background:rgba(124,107,255,.15); box-shadow:0 0 16px rgba(124,107,255,.2); }
+.btn-sm {
+  width:auto; padding:8px 14px; font-size:13px; border-radius:8px;
+  min-height:var(--tap); min-width:var(--tap);
+}
+.btn-danger { background:linear-gradient(135deg,#ff5e7a,#c0392b); }
+.btn-danger:hover:not(:disabled) { box-shadow:0 6px 20px rgba(255,94,122,.4); }
 
-/* GOALS */
-.goal-item{margin-bottom:20px;padding:16px;background:var(--card2);border:1px solid var(--border);
-  border-radius:12px;transition:border-color .2s;animation:fadeUp .4s both}
-.goal-item:hover{border-color:rgba(124,107,255,.3)}
-.goal-header{display:flex;justify-content:space-between;font-size:14px;margin-bottom:10px}
-.goal-bar-bg{background:rgba(255,255,255,.06);border-radius:99px;height:10px;overflow:hidden}
-.goal-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));
-  transition:width .8s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
-.goal-bar-fill::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);animation:shimmer 2s infinite}
-@keyframes shimmer{to{left:200%}}
-.goal-bar-fill.danger{background:linear-gradient(90deg,var(--accent2),var(--red))}
-.goal-bar-fill.success{background:linear-gradient(90deg,var(--accent3),var(--green))}
+/* ── TABLE ── */
+.table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+table { width:100%; border-collapse:collapse; font-size:14px; min-width:500px; }
+th {
+  text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase;
+  letter-spacing:1px; color:var(--muted); border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+td { padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+tbody tr { transition:background .15s; }
+tbody tr:hover td { background:rgba(124,107,255,.05); }
+/* WCAG 1.4.1: not colour alone — add shape to badges */
+.badge { display:inline-block; padding:4px 10px; border-radius:99px; font-size:12px; font-weight:600; }
+.badge-cardio     { background:rgba(96,165,250,.15); color:#93c5fd; border:1px solid rgba(96,165,250,.25); }
+.badge-strength   { background:rgba(255,107,157,.15); color:#fda4af; border:1px solid rgba(255,107,157,.25); }
+.badge-flexibility{ background:rgba(61,255,192,.15);  color:#6ee7b7; border:1px solid rgba(61,255,192,.25); }
+.badge-hiit       { background:rgba(167,139,250,.15); color:#c4b5fd; border:1px solid rgba(167,139,250,.25); }
 
-/* TOAST */
-.toast{position:fixed;bottom:32px;right:32px;z-index:9999;padding:14px 22px;
-  border-radius:14px;font-weight:600;font-size:14px;background:rgba(14,14,28,.95);
-  border:1px solid rgba(124,107,255,.4);color:#fff;backdrop-filter:blur(20px);
-  transform:translateY(80px) scale(.95);opacity:0;transition:all .35s cubic-bezier(.16,1,.3,1);
-  box-shadow:0 12px 40px rgba(0,0,0,.5),0 0 20px var(--glow);max-width:320px}
-.toast.show{transform:none;opacity:1}
+/* ── FEEDBACK CARDS ── */
+.feedback-card {
+  background:var(--card2); border:1px solid var(--border); border-radius:14px;
+  padding:18px; margin-bottom:12px; transition:border-color .2s; animation:fadeUp .4s both;
+}
+.feedback-card:hover { border-color:rgba(124,107,255,.3); }
+.feedback-meta { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px; }
+.feedback-name { font-weight:700; font-size:15px; }
+.feedback-date { font-size:12px; color:var(--muted); }
+.stars-display { font-size:16px; margin-bottom:6px; }
+.stars-display .lit  { color:var(--yellow); }
+.stars-display .dim  { color:var(--border);  }
+.feedback-text { font-size:14px; color:rgba(255,255,255,.65); line-height:1.6; }
 
-/* EMPTY */
-.empty{text-align:center;padding:48px 20px;color:var(--muted)}
-.empty .icon{font-size:48px;margin-bottom:14px;display:block;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+/* ── GOALS ── */
+.goal-item {
+  margin-bottom:16px; padding:16px; background:var(--card2);
+  border:1px solid var(--border); border-radius:12px; transition:border-color .2s; animation:fadeUp .4s both;
+}
+.goal-item:hover { border-color:rgba(124,107,255,.3); }
+.goal-header { display:flex; justify-content:space-between; align-items:baseline; font-size:14px; margin-bottom:10px; flex-wrap:wrap; gap:6px; }
+.goal-bar-bg { background:rgba(255,255,255,.06); border-radius:99px; height:10px; overflow:hidden; }
+.goal-bar-fill {
+  height:100%; border-radius:99px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  transition:width .8s cubic-bezier(.4,0,.2,1); position:relative; overflow:hidden;
+}
+.goal-bar-fill::after {
+  content:''; position:absolute; top:0; left:-100%; width:100%; height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.25),transparent);
+  animation:shimmer 2.5s infinite;
+}
+@keyframes shimmer { to { left:200%; } }
+.goal-bar-fill.danger  { background:linear-gradient(90deg,var(--accent2),#ff5e7a); }
+.goal-bar-fill.success { background:linear-gradient(90deg,var(--accent3),var(--green)); }
+.goal-controls { display:flex; gap:6px; margin-top:10px; align-items:center; flex-wrap:wrap; }
 
-/* CHART */
-.chart-wrap{position:relative;height:220px}
+/* ── TOAST (WCAG 4.1.3 live region) ── */
+#toast-region {
+  position:fixed; bottom:24px; right:24px; z-index:9999;
+  display:flex; flex-direction:column; gap:8px; align-items:flex-end;
+  max-width:min(320px,calc(100vw - 32px));
+}
+.toast {
+  padding:13px 18px; border-radius:12px; font-weight:600; font-size:14px;
+  background:rgba(14,14,28,.97); border:1px solid rgba(124,107,255,.4); color:#fff;
+  backdrop-filter:blur(20px); transform:translateX(120%);
+  transition:transform .35s cubic-bezier(.16,1,.3,1);
+  box-shadow:0 8px 32px rgba(0,0,0,.5); pointer-events:none;
+}
+.toast.show { transform:none; }
+.toast.success { border-color:rgba(61,255,192,.4); }
+.toast.error   { border-color:rgba(255,94,122,.4); }
 
-/* STARS */
-.star-input{display:flex;gap:8px;margin-top:4px}
-.star-input span{font-size:28px;cursor:pointer;transition:transform .15s,color .15s;color:var(--border)}
-.star-input span.lit{color:var(--yellow);text-shadow:0 0 12px rgba(255,229,102,.6)}
-.star-input span:hover{transform:scale(1.3) rotate(10deg)}
+/* ── EMPTY STATE ── */
+.empty { text-align:center; padding:44px 20px; color:var(--muted); }
+.empty .icon { font-size:44px; margin-bottom:12px; display:block; animation:pulse 2.5s infinite; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+.empty p { font-size:15px; }
 
-/* LIVE DOT */
-.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px;position:relative}
-.live-dot::after{content:'';position:absolute;inset:-4px;border-radius:50%;
-  background:rgba(61,255,192,.3);animation:ripple 1.5s infinite}
-@keyframes ripple{0%{transform:scale(1);opacity:1}100%{transform:scale(2);opacity:0}}
+/* ── CHART ── */
+.chart-wrap { position:relative; height:clamp(160px,25vw,220px); }
 
-.tip-box{background:linear-gradient(135deg,rgba(124,107,255,.1),rgba(255,107,157,.1));
-  border:1px solid rgba(124,107,255,.2);border-radius:12px;padding:16px;
-  font-size:14px;color:rgba(255,255,255,.7);line-height:1.7}
+/* ── STAR INPUT ── */
+.star-input { display:flex; gap:6px; margin-top:4px; }
+.star-input button {
+  font-size:26px; cursor:pointer; background:none; border:none;
+  color:var(--border); transition:transform .15s,color .15s;
+  min-width:var(--tap); min-height:var(--tap); display:flex; align-items:center; justify-content:center;
+  border-radius:6px; padding:0;
+}
+.star-input button.lit { color:var(--yellow); text-shadow:0 0 10px rgba(255,229,102,.5); }
+.star-input button:hover { transform:scale(1.25); }
 
-.feedback-banner{margin-top:20px;background:linear-gradient(135deg,rgba(124,107,255,.08),rgba(255,107,157,.08));
-  border:1px solid rgba(124,107,255,.25);border-radius:16px;padding:20px;display:none;animation:fadeUp .5s both}
-.feedback-banner-title{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;
+/* ── FEEDBACK BANNER ── */
+.feedback-banner {
+  margin-top:18px; background:linear-gradient(135deg,rgba(124,107,255,.08),rgba(255,107,157,.06));
+  border:1px solid rgba(124,107,255,.2); border-radius:14px; padding:18px; display:none;
+}
+.feedback-banner-title {
+  font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:2px; margin-bottom:6px;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+}
 
-::-webkit-scrollbar{width:6px}
-::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
-::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:99px; }
+::-webkit-scrollbar-thumb:hover { background:var(--accent); }
 
-@media(max-width:768px){
-  .stats-row{grid-template-columns:1fr 1fr}
-  .grid-2{grid-template-columns:1fr}
-  .hero{flex-direction:column;align-items:flex-start}
-  .hero::after{display:none}
-  nav{padding:0 16px}
-  .page{padding:16px}
-  .hero-stats{flex-wrap:wrap;gap:20px}
+/* ── RESPONSIVE ── */
+@media (max-width:900px) {
+  .stats-row { grid-template-columns:1fr 1fr; }
+}
+@media (max-width:640px) {
+  .stats-row { grid-template-columns:1fr 1fr; gap:10px; }
+  .grid-2 { grid-template-columns:1fr; }
+  .hero { flex-direction:column; align-items:flex-start; padding:24px 20px; }
+  .hero-divider { display:none; }
+  .hero-stats { gap:20px; }
+  .nav-inner { padding:0 12px; min-height:56px; }
+  .nav-tab { padding:6px 10px; font-size:12px; }
+  .page { padding:16px 12px; }
+  .card { padding:18px; }
+  .stat-card { padding:16px; }
+  .stat-num { font-size:32px; }
+  table { font-size:13px; }
+  th, td { padding:10px 10px; }
+}
+@media (max-width:400px) {
+  .nav-tabs { gap:1px; }
+  .nav-tab span { display:none; }
+  .nav-tab::after {
+    content: attr(data-icon);
+    position:relative; z-index:1; font-size:16px;
+  }
+}
+
+/* ── REDUCED MOTION (WCAG 2.3.3) ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
+}
+/* ── HIGH CONTRAST (WCAG 1.4.6) ── */
+@media (prefers-contrast: more) {
+  :root { --border:#6666aa; --muted:#aaaacc; }
+  .card { border-color:#6666aa; }
 }
 </style>
 </head>
 <body>
 
-<!-- Loading overlay -->
-<div id="loading-overlay">
-  <div class="spinner"></div>
+<!-- WCAG 2.4.1: Skip navigation -->
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<!-- WCAG 4.1.3: Status messages announced to screen readers -->
+<div id="toast-region" role="status" aria-live="polite" aria-atomic="false"></div>
+
+<!-- Loading -->
+<div id="loading-overlay" role="status" aria-label="Loading TrackFit">
+  <div class="spinner" aria-hidden="true"></div>
   <div class="loading-text">Loading TrackFit...</div>
 </div>
 
-<div class="bg-orbs">
-  <div class="orb orb1"></div>
-  <div class="orb orb2"></div>
-  <div class="orb orb3"></div>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div>
 </div>
 
-<nav>
-  <div class="logo">TRACK<span style="background:linear-gradient(135deg,#fff,rgba(255,255,255,.5));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">FIT</span></div>
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('dashboard')"><span>Dashboard</span></button>
-    <button class="nav-tab" onclick="showPage('log')"><span>Log Workout</span></button>
-    <button class="nav-tab" onclick="showPage('history')"><span>History</span></button>
-    <button class="nav-tab" onclick="showPage('goals')"><span>Goals</span></button>
-    <button class="nav-tab" onclick="showPage('feedback')"><span>Feedback</span></button>
+<!-- NAV -->
+<nav aria-label="Main navigation">
+  <div class="nav-inner">
+    <div class="logo" aria-label="TrackFit">TRACKFIT</div>
+    <div class="nav-tabs" role="tablist" aria-label="App sections">
+      <button class="nav-tab active" role="tab" aria-selected="true"  aria-controls="page-dashboard" data-page="dashboard" data-icon="🏠" onclick="showPage('dashboard')"><span>Dashboard</span></button>
+      <button class="nav-tab"        role="tab" aria-selected="false" aria-controls="page-log"       data-page="log"       data-icon="➕" onclick="showPage('log')"><span>Log Workout</span></button>
+      <button class="nav-tab"        role="tab" aria-selected="false" aria-controls="page-history"   data-page="history"   data-icon="📋" onclick="showPage('history')"><span>History</span></button>
+      <button class="nav-tab"        role="tab" aria-selected="false" aria-controls="page-goals"     data-page="goals"     data-icon="🎯" onclick="showPage('goals')"><span>Goals</span></button>
+      <button class="nav-tab"        role="tab" aria-selected="false" aria-controls="page-feedback"  data-page="feedback"  data-icon="💬" onclick="showPage('feedback')"><span>Feedback</span></button>
+    </div>
+    <button id="theme-toggle" onclick="toggleTheme()" aria-label="Switch to light mode" aria-pressed="false">
+      <span class="toggle-icon" aria-hidden="true">☀️</span>
+      <span class="toggle-label">Light</span>
+    </button>
   </div>
 </nav>
 
-<!-- DASHBOARD -->
-<div id="page-dashboard" class="page active">
+<main id="main-content">
+
+<!-- ═══════════ DASHBOARD ═══════════ -->
+<div id="page-dashboard" class="page active" role="tabpanel" aria-label="Dashboard" tabindex="0">
   <div class="hero animate-in">
     <div class="hero-left">
       <h1>Your Fitness<br>Dashboard</h1>
-      <p><span class="live-dot"></span><span id="hero-subtitle">Loading your data...</span></p>
     </div>
-    <div class="hero-stats">
-      <div class="hero-stat"><div class="val" id="hero-streak">—</div><div class="lbl">Day Streak 🔥</div></div>
-      <div class="hero-divider"></div>
-      <div class="hero-stat"><div class="val" id="hero-total">—</div><div class="lbl">Total Workouts</div></div>
-      <div class="hero-divider"></div>
-      <div class="hero-stat"><div class="val" id="hero-mins">—</div><div class="lbl">Total Minutes</div></div>
+    <div class="hero-stats" aria-label="Key statistics">
+      <div class="hero-stat">
+        <div class="val" id="hero-streak" aria-label="Day streak">—</div>
+        <div class="lbl" aria-hidden="true">Day Streak 🔥</div>
+      </div>
+      <div class="hero-divider" aria-hidden="true"></div>
+      <div class="hero-stat">
+        <div class="val" id="hero-total" aria-label="Total workouts">—</div>
+        <div class="lbl" aria-hidden="true">Total Workouts</div>
+      </div>
+      <div class="hero-divider" aria-hidden="true"></div>
+      <div class="hero-stat">
+        <div class="val" id="hero-mins" aria-label="Total minutes">—</div>
+        <div class="lbl" aria-hidden="true">Total Minutes</div>
+      </div>
     </div>
   </div>
+
+  <!-- Motivational Quote (replaces Weekly Activity) -->
+  <div class="quote-card animate-in" id="quote-section" aria-label="Motivational quote">
+    <div class="quote-text" id="quote-text">Loading…</div>
+    <div class="quote-label">Daily Motivation</div>
+  </div>
+
   <div class="stats-row animate-in">
-    <div class="stat-card c1"><div class="glow-blob"></div><span class="stat-icon">🏃</span><div class="stat-num" id="stat-week">—</div><div class="stat-label">Workouts This Week</div></div>
-    <div class="stat-card c2"><div class="glow-blob"></div><span class="stat-icon">🔥</span><div class="stat-num" id="stat-cals">—</div><div class="stat-label">Calories Burned</div></div>
-    <div class="stat-card c3"><div class="glow-blob"></div><span class="stat-icon">⏱️</span><div class="stat-num" id="stat-avg">—</div><div class="stat-label">Avg Duration (min)</div></div>
-    <div class="stat-card c4"><div class="glow-blob"></div><span class="stat-icon">💪</span><div class="stat-num" id="stat-fav">—</div><div class="stat-label">Favourite Type</div></div>
+    <div class="stat-card c1"><div class="glow-blob" aria-hidden="true"></div><span class="stat-icon" aria-hidden="true">🏃</span><div class="stat-num" id="stat-week">—</div><div class="stat-label">This Week</div></div>
+    <div class="stat-card c2"><div class="glow-blob" aria-hidden="true"></div><span class="stat-icon" aria-hidden="true">🔥</span><div class="stat-num" id="stat-cals">—</div><div class="stat-label">Calories Burned</div></div>
+    <div class="stat-card c3"><div class="glow-blob" aria-hidden="true"></div><span class="stat-icon" aria-hidden="true">⏱️</span><div class="stat-num" id="stat-avg">—</div><div class="stat-label">Avg Duration (min)</div></div>
+    <div class="stat-card c4"><div class="glow-blob" aria-hidden="true"></div><span class="stat-icon" aria-hidden="true">💪</span><div class="stat-num" id="stat-fav">—</div><div class="stat-label">Favourite Type</div></div>
   </div>
-  <div class="grid-2 animate-in" style="margin-bottom:20px">
-    <div class="card"><div class="card-title">📊 Weekly Activity (minutes)</div><div class="chart-wrap"><canvas id="chartWeekly"></canvas></div></div>
-    <div class="card"><div class="card-title">🍩 Workout Types</div><div class="chart-wrap"><canvas id="chartTypes"></canvas></div></div>
+
+  <div class="grid-2 animate-in" style="margin-bottom:18px">
+    <div class="card">
+      <div class="card-title" id="chart-types-title">🍩 Workout Types</div>
+      <div class="chart-wrap"><canvas id="chartTypes" aria-labelledby="chart-types-title" role="img"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title" id="chart-cals-title">📈 Calories — Last 7 Workouts</div>
+      <div class="chart-wrap"><canvas id="chartCals" aria-labelledby="chart-cals-title" role="img"></canvas></div>
+    </div>
   </div>
-  <div class="card animate-in"><div class="card-title">📈 Calories Burned — Last 7 Workouts</div><div class="chart-wrap"><canvas id="chartCals"></canvas></div></div>
-  <div class="feedback-banner animate-in" id="feedback-banner">
+
+  <div class="feedback-banner" id="feedback-banner" role="complementary" aria-label="Latest feedback">
     <div class="feedback-banner-title">💬 LATEST FEEDBACK</div>
-    <div id="feedback-banner-text" style="font-size:14px;color:rgba(255,255,255,.6)"></div>
+    <div id="feedback-banner-text" style="font-size:14px;color:rgba(255,255,255,.65)"></div>
   </div>
 </div>
 
-<!-- LOG WORKOUT -->
-<div id="page-log" class="page">
+<!-- ═══════════ LOG WORKOUT ═══════════ -->
+<div id="page-log" class="page" role="tabpanel" aria-label="Log Workout" tabindex="0">
   <div class="grid-2">
     <div class="card animate-in">
       <div class="card-title">🏋️ Log a Workout</div>
-      <div class="form-group"><label>Exercise Name</label><input type="text" id="ex-name" placeholder="e.g. Morning Run, Bench Press..."></div>
-      <div class="form-group"><label>Workout Type</label>
-        <select id="ex-type">
-          <option value="Cardio">🏃 Cardio</option>
-          <option value="Strength">🏋️ Strength</option>
-          <option value="Flexibility">🧘 Flexibility</option>
-          <option value="HIIT">⚡ HIIT</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Duration (minutes)</label><input type="number" id="ex-duration" placeholder="e.g. 30" min="1" max="300"></div>
-      <div class="form-group"><label>Calories Burned (estimate)</label><input type="number" id="ex-cals" placeholder="e.g. 250" min="0"></div>
-      <div class="form-group"><label>Date</label><input type="date" id="ex-date"></div>
-      <div class="form-group"><label>Notes (optional)</label><textarea id="ex-notes" rows="3" placeholder="How did it feel? Any personal bests?"></textarea></div>
-      <button class="btn" id="log-btn" onclick="logWorkout()">✓ Log Workout</button>
+      <form id="log-form" novalidate onsubmit="return false">
+        <div class="form-group">
+          <label for="ex-name">Exercise Name <span aria-hidden="true">*</span></label>
+          <input type="text" id="ex-name" autocomplete="off" placeholder="e.g. Morning Run, Bench Press…"
+                 aria-required="true" aria-describedby="ex-name-err">
+          <div class="field-error" id="ex-name-err" role="alert">Please enter an exercise name.</div>
+        </div>
+        <div class="form-group">
+          <label for="ex-type">Workout Type</label>
+          <select id="ex-type">
+            <option value="Cardio">🏃 Cardio</option>
+            <option value="Strength">🏋️ Strength</option>
+            <option value="Flexibility">🧘 Flexibility</option>
+            <option value="HIIT">⚡ HIIT</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="ex-duration">Duration (minutes) <span aria-hidden="true">*</span></label>
+          <input type="number" id="ex-duration" placeholder="e.g. 30" min="1" max="300"
+                 aria-required="true" aria-describedby="ex-dur-err">
+          <div class="field-error" id="ex-dur-err" role="alert">Please enter a valid duration (1–300 min).</div>
+        </div>
+        <div class="form-group">
+          <label for="ex-cals">Calories Burned (optional)</label>
+          <input type="number" id="ex-cals" placeholder="e.g. 250" min="0">
+        </div>
+        <div class="form-group">
+          <label for="ex-date">Date <span aria-hidden="true">*</span></label>
+          <input type="date" id="ex-date" aria-required="true" aria-describedby="ex-date-err">
+          <div class="field-error" id="ex-date-err" role="alert">Please select a date.</div>
+        </div>
+        <div class="form-group">
+          <label for="ex-notes">Notes (optional)</label>
+          <textarea id="ex-notes" rows="3" placeholder="How did it feel? Any personal bests?"></textarea>
+        </div>
+        <button type="submit" class="btn" id="log-btn" onclick="logWorkout()">
+          <span id="log-btn-text">✓ Log Workout</span>
+        </button>
+      </form>
     </div>
-    <div style="display:flex;flex-direction:column;gap:20px">
+
+    <div style="display:flex;flex-direction:column;gap:16px">
       <div class="card animate-in" style="animation-delay:.1s">
         <div class="card-title">💡 Quick Tip</div>
-        <div class="tip-box" id="quick-tip"></div>
+        <div style="background:linear-gradient(135deg,rgba(124,107,255,.1),rgba(255,107,157,.1));border:1px solid rgba(124,107,255,.2);border-radius:10px;padding:14px;font-size:14px;color:rgba(255,255,255,.75);line-height:1.7" id="quick-tip" aria-live="polite"></div>
       </div>
-      <div class="card animate-in" style="animation-delay:.2s">
+      <div class="card animate-in" style="animation-delay:.18s">
         <div class="card-title">🔥 Calorie Estimator</div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;text-transform:uppercase;letter-spacing:1px">Approx. per 30 min / 70kg</p>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)"><span>🏃 Running</span><span style="color:var(--accent);font-weight:600">~300 cal</span></div>
-          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)"><span>🚴 Cycling</span><span style="color:var(--accent);font-weight:600">~250 cal</span></div>
-          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)"><span>🏋️ Weights</span><span style="color:var(--accent);font-weight:600">~180 cal</span></div>
-          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)"><span>⚡ HIIT</span><span style="color:var(--accent);font-weight:600">~350 cal</span></div>
-          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)"><span>🧘 Yoga</span><span style="color:var(--accent);font-weight:600">~120 cal</span></div>
-        </div>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">Approx. per 30 min / 70 kg</p>
+        <dl style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;padding:9px 13px;background:rgba(255,255,255,.03);border-radius:9px;border:1px solid var(--border)"><dt>🏃 Running</dt><dd style="color:var(--accent);font-weight:600">~300 cal</dd></div>
+          <div style="display:flex;justify-content:space-between;padding:9px 13px;background:rgba(255,255,255,.03);border-radius:9px;border:1px solid var(--border)"><dt>🚴 Cycling</dt><dd style="color:var(--accent);font-weight:600">~250 cal</dd></div>
+          <div style="display:flex;justify-content:space-between;padding:9px 13px;background:rgba(255,255,255,.03);border-radius:9px;border:1px solid var(--border)"><dt>🏋️ Weights</dt><dd style="color:var(--accent);font-weight:600">~180 cal</dd></div>
+          <div style="display:flex;justify-content:space-between;padding:9px 13px;background:rgba(255,255,255,.03);border-radius:9px;border:1px solid var(--border)"><dt>⚡ HIIT</dt><dd style="color:var(--accent);font-weight:600">~350 cal</dd></div>
+          <div style="display:flex;justify-content:space-between;padding:9px 13px;background:rgba(255,255,255,.03);border-radius:9px;border:1px solid var(--border)"><dt>🧘 Yoga</dt><dd style="color:var(--accent);font-weight:600">~120 cal</dd></div>
+        </dl>
       </div>
     </div>
   </div>
 </div>
 
-<!-- HISTORY -->
-<div id="page-history" class="page">
+<!-- ═══════════ HISTORY ═══════════ -->
+<div id="page-history" class="page" role="tabpanel" aria-label="Workout History" tabindex="0">
   <div class="card animate-in">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <div class="card-title" style="margin-bottom:0">📋 Workout History</div>
-      <select id="filter-type" onchange="renderHistory()" style="width:auto;padding:8px 14px;font-size:13px;border-radius:10px">
-        <option value="All">All Types</option>
-        <option value="Cardio">Cardio</option>
-        <option value="Strength">Strength</option>
-        <option value="Flexibility">Flexibility</option>
-        <option value="HIIT">HIIT</option>
-      </select>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+      <h2 class="card-title" style="margin-bottom:0">📋 Workout History</h2>
+      <div>
+        <label for="filter-type" class="visually-hidden">Filter by workout type</label>
+        <select id="filter-type" onchange="renderHistory()" style="width:auto;padding:10px 14px;font-size:13px;border-radius:10px;min-height:var(--tap)" aria-label="Filter workouts by type">
+          <option value="All">All Types</option>
+          <option value="Cardio">Cardio</option>
+          <option value="Strength">Strength</option>
+          <option value="Flexibility">Flexibility</option>
+          <option value="HIIT">HIIT</option>
+        </select>
+      </div>
     </div>
-    <div id="history-table-wrap"><div class="empty"><span class="icon">📋</span><p>No workouts yet — log one!</p></div></div>
+    <div id="history-table-wrap">
+      <div class="empty"><span class="icon" aria-hidden="true">📋</span><p>No workouts yet — log one!</p></div>
+    </div>
   </div>
 </div>
 
-<!-- GOALS -->
-<div id="page-goals" class="page">
+<!-- ═══════════ GOALS ═══════════ -->
+<div id="page-goals" class="page" role="tabpanel" aria-label="Goals" tabindex="0">
   <div class="grid-2">
     <div class="card animate-in">
       <div class="card-title">🎯 Set a New Goal</div>
-      <div class="form-group"><label>Goal Name</label><input type="text" id="goal-name" placeholder="e.g. Run 20km, 20 workouts..."></div>
-      <div class="form-group"><label>Target Value</label><input type="number" id="goal-target" placeholder="e.g. 20" min="1"></div>
-      <div class="form-group"><label>Unit</label><input type="text" id="goal-unit" placeholder="e.g. workouts, km, kg..."></div>
-      <div class="form-group"><label>Current Progress</label><input type="number" id="goal-current" placeholder="0" min="0"></div>
-      <button class="btn" onclick="addGoal()">+ Add Goal</button>
+      <form onsubmit="return false">
+        <div class="form-group"><label for="goal-name">Goal Name</label><input type="text" id="goal-name" placeholder="e.g. Run 20km, 20 workouts…"></div>
+        <div class="form-group"><label for="goal-target">Target Value</label><input type="number" id="goal-target" placeholder="e.g. 20" min="1"></div>
+        <div class="form-group"><label for="goal-unit">Unit</label><input type="text" id="goal-unit" placeholder="e.g. workouts, km, kg…"></div>
+        <div class="form-group"><label for="goal-current">Current Progress</label><input type="number" id="goal-current" placeholder="0" min="0"></div>
+        <button type="submit" class="btn" onclick="addGoal()">+ Add Goal</button>
+      </form>
     </div>
     <div class="card animate-in" style="animation-delay:.1s">
       <div class="card-title">🏆 Your Goals</div>
-      <div id="goals-list"><div class="empty"><span class="icon">🎯</span><p>No goals yet.</p></div></div>
+      <div id="goals-list"><div class="empty"><span class="icon" aria-hidden="true">🎯</span><p>No goals yet.</p></div></div>
     </div>
   </div>
 </div>
 
-<!-- FEEDBACK -->
-<div id="page-feedback" class="page">
+<!-- ═══════════ FEEDBACK ═══════════ -->
+<div id="page-feedback" class="page" role="tabpanel" aria-label="Feedback" tabindex="0">
   <div class="grid-2">
     <div class="card animate-in">
       <div class="card-title">✍️ Leave Feedback</div>
-      <div class="form-group"><label>Your Name</label><input type="text" id="fb-name" placeholder="e.g. Alex"></div>
-      <div class="form-group"><label>Rating</label>
-        <div class="star-input" id="star-input">
-          <span onclick="setStars(1)">★</span><span onclick="setStars(2)">★</span>
-          <span onclick="setStars(3)">★</span><span onclick="setStars(4)">★</span><span onclick="setStars(5)">★</span>
+      <form onsubmit="return false">
+        <div class="form-group"><label for="fb-name">Your Name</label><input type="text" id="fb-name" placeholder="e.g. Alex" autocomplete="given-name"></div>
+        <div class="form-group">
+          <label>Rating</label>
+          <div class="star-input" role="group" aria-label="Star rating" id="star-input">
+            <button type="button" class="star-btn" aria-label="1 star" data-val="1" onclick="setStars(1)">★</button>
+            <button type="button" class="star-btn" aria-label="2 stars" data-val="2" onclick="setStars(2)">★</button>
+            <button type="button" class="star-btn" aria-label="3 stars" data-val="3" onclick="setStars(3)">★</button>
+            <button type="button" class="star-btn" aria-label="4 stars" data-val="4" onclick="setStars(4)">★</button>
+            <button type="button" class="star-btn" aria-label="5 stars" data-val="5" onclick="setStars(5)">★</button>
+          </div>
         </div>
-      </div>
-      <div class="form-group"><label>How is TrackFit helping you?</label><textarea id="fb-text" rows="4" placeholder="Tell us what's working..."></textarea></div>
-      <div class="form-group"><label>Feature you'd love next</label>
-        <select id="fb-feature">
-          <option>Social sharing</option><option>Workout plans</option>
-          <option>Nutrition tracking</option><option>Wearable sync</option><option>Video tutorials</option>
-        </select>
-      </div>
-      <button class="btn" onclick="submitFeedback()">Submit Feedback</button>
+        <div class="form-group"><label for="fb-text">How is TrackFit helping you?</label><textarea id="fb-text" rows="4" placeholder="Tell us what's working, what could be better…"></textarea></div>
+        <div class="form-group">
+          <label for="fb-feature">Feature you'd love next</label>
+          <select id="fb-feature">
+            <option>Social sharing</option><option>Workout plans</option>
+            <option>Nutrition tracking</option><option>Wearable sync</option><option>Video tutorials</option>
+          </select>
+        </div>
+        <button type="submit" class="btn" onclick="submitFeedback()">Submit Feedback</button>
+      </form>
     </div>
     <div class="card animate-in" style="animation-delay:.1s">
       <div class="card-title">💬 User Feedback</div>
-      <div id="feedback-list"><div class="empty"><span class="icon">💬</span><p>No feedback yet.</p></div></div>
+      <div id="feedback-list"><div class="empty"><span class="icon" aria-hidden="true">💬</span><p>No feedback yet.</p></div></div>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+</main>
+
+<!-- Visually hidden utility (WCAG) -->
+<style>.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
 
 <script>
-// ═══════════════════════════════════════════════════════════
+'use strict';
+
+// ═══════════════════════════════════════════════════
 // STATE
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 let workouts  = [];
 let goals     = [];
 let feedbacks = [];
 let selectedStars = 0;
 
-const tips = [
-  "💧 Stay hydrated — drink water before, during and after every workout.",
-  "😴 Rest days are just as important as training. Muscles grow while you rest.",
-  "🎯 Set SMART goals: Specific, Measurable, Achievable, Relevant, Time-bound.",
-  "🧘 Always warm up for 5–10 minutes to prevent injuries.",
-  "📈 Progressive overload: gradually increase weight or reps each week.",
-  "🥗 Protein within 30 minutes post-workout helps muscle recovery.",
-  "🏃 Consistency beats intensity. 4 moderate sessions beats 1 brutal one.",
+const QUOTES = [
+  { text: "I've failed over and over and over again in my life. And that is why I succeed.", author: "Michael Jordan" },
+  { text: "If you're afraid to fail, then you're probably going to fail.", author: "Kobe Bryant" },
+  { text: "The most important thing is to try and inspire people so that they can be great in whatever they want to do.", author: "Kobe Bryant" },
+  { text: "I don't stop when I'm tired. I stop when I'm done.", author: "Kobe Bryant" },
+  { text: "Greatness is not a destination — it's a daily grind. Show up today.", author: "LeBron James" },
+  { text: "Every day is a new opportunity to get better. Don't waste it sitting still.", author: "LeBron James" },
+  { text: "Hard work beats talent when talent fails to work hard.", author: "Kevin Durant" },
+  { text: "You don't get to shortcuts. Ain't no elevator to success — you gotta take the stairs.", author: "Kevin Durant" },
+  { text: "Success is not an accident. It is hard work, perseverance, learning, sacrifice, and most of all, love of what you do.", author: "Stephen Curry" },
+  { text: "I have a gift, but I've worked for everything I've achieved. The work never stops.", author: "Stephen Curry" },
+  { text: "I am not the next LeBron James. I am the first Giannis Antetokounmpo.", author: "Giannis Antetokounmpo" },
+  { text: "No matter where you come from, if you put in the work, the results will show up.", author: "Giannis Antetokounmpo" },
+  { text: "You can't win unless you learn how to lose.", author: "Kareem Abdul-Jabbar" },
+  { text: "One man can be a crucial ingredient on a team, but one man cannot make a team.", author: "Kareem Abdul-Jabbar" },
+  { text: "Push yourself again and again. Don't give an inch until the final buzzer sounds.", author: "Larry Bird" },
+  { text: "I've got a theory that if you give 100% all of the time, somehow things will work out in the end.", author: "Larry Bird" },
+  { text: "Talent is never enough. With few exceptions, the best players are the hardest workers.", author: "Magic Johnson" },
+  { text: "Ask not what your teammates can do for you — ask what you can do for your teammates.", author: "Magic Johnson" },
+  { text: "Good, better, best. Never let it rest. Until your good is better and your better is best.", author: "Tim Duncan" },
+  { text: "Just play. Have fun. Enjoy the game. But never forget to put in the reps.", author: "Michael Jordan" },
+  { text: "Some people want it to happen, some wish it would happen, others make it happen.", author: "Michael Jordan" },
+  { text: "Once I made a decision, I never thought about it again.", author: "Michael Jordan" },
+  { text: "The clock is ticking. Are you becoming the person you want to be?", author: "Kobe Bryant" },
+  { text: "Rest at the end, not in the middle. The work you put in today is the strength you carry tomorrow.", author: "Kevin Durant" },
+  { text: "Be legendary. Not just on the court — in the gym, in the grind, in the mirror every morning.", author: "LeBron James" },
 ];
 
-// ═══════════════════════════════════════════════════════════
-// API HELPERS
-// ═══════════════════════════════════════════════════════════
+const TIPS = [
+  "💧 Drink water before, during and after every workout.",
+  "😴 Rest days are just as important as training — muscles grow when you rest.",
+  "🎯 Set SMART goals: Specific, Measurable, Achievable, Relevant, Time-bound.",
+  "🧘 Always warm up for 5–10 minutes to prevent injury.",
+  "📈 Increase weight or reps gradually each week — progressive overload is key.",
+  "🥗 Eat protein within 30 minutes after your workout to help recovery.",
+  "🏃 Consistency beats intensity — 4 steady sessions beats 1 brutal one.",
+];
+
+// ═══════════════════════════════════════════════════
+// API
+// ═══════════════════════════════════════════════════
 async function api(path, method = 'GET', body = null) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(path, opts);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || 'API error');
-  }
-  return res.json();
+  const data = await res.json().catch(() => ({ error: 'Invalid server response' }));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
 }
 
-// ═══════════════════════════════════════════════════════════
-// BOOT — load all data from DB on page load
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════
 async function boot() {
   try {
-    [workouts, goals, feedbacks] = await Promise.all([
+    const [w, g, f] = await Promise.all([
       api('/api/workouts'),
       api('/api/goals'),
       api('/api/feedbacks'),
     ]);
-    // Normalise types from postgres (numeric strings → numbers)
-    workouts  = workouts.map(w => ({ ...w, duration: +w.duration, cals: +w.cals }));
-    goals     = goals.map(g  => ({ ...g, target: +g.target, current: +g.current }));
-    feedbacks = feedbacks.map(f => ({ ...f, stars: +f.stars }));
+    workouts  = w.map(r => ({ ...r, duration: +r.duration, cals: +r.cals }));
+    goals     = g.map(r => ({ ...r, target: +r.target,   current: +r.current }));
+    feedbacks = f.map(r => ({ ...r, stars: +r.stars }));
   } catch (e) {
     console.error('Boot error:', e);
-    toast('⚠️ Could not connect to database');
+    // Show friendly message — not a scary red error
+    showToast('⚠️ Could not reach database. Check your Vercel environment variables.', 'error', 6000);
   }
-  document.getElementById('loading-overlay').classList.add('hidden');
+
+  // Set defaults
   document.getElementById('ex-date').valueAsDate = new Date();
-  document.getElementById('quick-tip').textContent = tips[Math.floor(Math.random() * tips.length)];
+  document.getElementById('quick-tip').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
+
+  // Set motivational quote
+  const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  document.getElementById('quote-text').innerHTML =
+    `${q.text}<span class="quote-author">— ${q.author}</span>`;
+
   updateDashboard();
   renderHistory();
   renderGoals();
   renderFeedback();
+
+  document.getElementById('loading-overlay').classList.add('hidden');
+
+  // Sync theme toggle button state if light mode was pre-applied
+  if (document.documentElement.classList.contains('light')) {
+    const btn = document.getElementById('theme-toggle');
+    btn.setAttribute('aria-pressed', 'true');
+    btn.setAttribute('aria-label', 'Switch to dark mode');
+    btn.querySelector('.toggle-icon').textContent  = '🌙';
+    btn.querySelector('.toggle-label').textContent = 'Dark';
+  }
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 // NAV
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => {
     p.classList.remove('active');
-    p.querySelectorAll('.animate-in').forEach(el => { el.style.animation = 'none'; el.offsetHeight; el.style.animation = ''; });
+    // Re-trigger animations
+    p.querySelectorAll('.animate-in').forEach(el => {
+      el.style.animation = 'none';
+      void el.offsetHeight;
+      el.style.animation = '';
+    });
   });
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
-  ['dashboard','log','history','goals','feedback'].forEach((name, i) => {
-    if (name === id) document.querySelectorAll('.nav-tab')[i].classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(btn => {
+    btn.classList.remove('active');
+    btn.setAttribute('aria-selected', 'false');
   });
-  if (id === 'log') document.getElementById('quick-tip').textContent = tips[Math.floor(Math.random() * tips.length)];
+
+  const page = document.getElementById('page-' + id);
+  page.classList.add('active');
+  page.focus({ preventScroll: true });
+
+  const tab = document.querySelector(`.nav-tab[data-page="${id}"]`);
+  if (tab) { tab.classList.add('active'); tab.setAttribute('aria-selected', 'true'); }
+
+  if (id === 'log') {
+    document.getElementById('quick-tip').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
+  }
   if (id === 'dashboard') updateDashboard();
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 // TOAST
-// ═══════════════════════════════════════════════════════════
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
+// ═══════════════════════════════════════════════════
+function showToast(msg, type = 'success', duration = 3200) {
+  const region = document.getElementById('toast-region');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  region.appendChild(t);
+  requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('show')));
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 400);
+  }, duration);
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 // COUNTER ANIMATION
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 function animateCount(el, target) {
-  const duration = 900, start = performance.now();
-  function update(now) {
-    const p = Math.min((now - start) / duration, 1);
-    const ease = 1 - Math.pow(1 - p, 3);
-    el.textContent = Math.round(target * ease);
-    if (p < 1) requestAnimationFrame(update);
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = target; return;
   }
-  requestAnimationFrame(update);
+  const duration = 800, start = performance.now();
+  function step(now) {
+    const p = Math.min((now - start) / duration, 1);
+    el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
 }
 
-// ═══════════════════════════════════════════════════════════
-// LOG WORKOUT
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+// LOG WORKOUT — fixes: validation UX, redirect to history
+// ═══════════════════════════════════════════════════
 async function logWorkout() {
-  const name     = document.getElementById('ex-name').value.trim();
-  const type     = document.getElementById('ex-type').value.replace(/[^\w]/g,'');
-  const duration = parseInt(document.getElementById('ex-duration').value);
+  const nameEl = document.getElementById('ex-name');
+  const durEl  = document.getElementById('ex-duration');
+  const dateEl = document.getElementById('ex-date');
+
+  // Clear previous errors
+  ['ex-name-err','ex-dur-err','ex-date-err'].forEach(id => {
+    document.getElementById(id).classList.remove('show');
+  });
+  [nameEl, durEl, dateEl].forEach(el => el.removeAttribute('aria-invalid'));
+
+  const name     = nameEl.value.trim();
+  const type     = document.getElementById('ex-type').value.replace(/[^\w]/g, '');
+  const duration = parseInt(durEl.value);
   const cals     = parseInt(document.getElementById('ex-cals').value) || 0;
-  const date     = document.getElementById('ex-date').value;
+  const date     = dateEl.value;
   const notes    = document.getElementById('ex-notes').value.trim();
 
-  if (!name)              return toast('⚠️ Enter an exercise name!');
-  if (!duration || duration < 1) return toast('⚠️ Enter a valid duration!');
-  if (!date)              return toast('⚠️ Pick a date!');
+  // Validate
+  let valid = true;
+  if (!name) {
+    document.getElementById('ex-name-err').classList.add('show');
+    nameEl.setAttribute('aria-invalid', 'true');
+    nameEl.focus();
+    valid = false;
+  }
+  if (!duration || duration < 1 || duration > 300) {
+    document.getElementById('ex-dur-err').classList.add('show');
+    durEl.setAttribute('aria-invalid', 'true');
+    if (valid) durEl.focus();
+    valid = false;
+  }
+  if (!date) {
+    document.getElementById('ex-date-err').classList.add('show');
+    dateEl.setAttribute('aria-invalid', 'true');
+    if (valid) dateEl.focus();
+    valid = false;
+  }
+  if (!valid) return;
 
-  const btn = document.getElementById('log-btn');
-  btn.disabled = true; btn.textContent = 'Saving...';
+  const btn     = document.getElementById('log-btn');
+  const btnText = document.getElementById('log-btn-text');
+  btn.disabled  = true;
+  btnText.textContent = 'Saving…';
 
   try {
     const workout = { id: Date.now(), name, type, duration, cals, date, notes };
     await api('/api/workouts', 'POST', workout);
     workouts.unshift(workout);
-    document.getElementById('ex-name').value    = '';
-    document.getElementById('ex-duration').value = '';
-    document.getElementById('ex-cals').value     = '';
-    document.getElementById('ex-notes').value    = '';
-    toast('✅ Workout saved to database!');
-    btn.textContent = '🎉 Saved!';
-    setTimeout(() => { btn.textContent = '✓ Log Workout'; btn.disabled = false; }, 1500);
-    updateDashboard();
+
+    // Clear form
+    nameEl.value = '';
+    durEl.value  = '';
+    document.getElementById('ex-cals').value  = '';
+    document.getElementById('ex-notes').value = '';
+    dateEl.valueAsDate = new Date();
+
+    showToast('✅ Workout saved!');
+    btnText.textContent = '🎉 Saved!';
+    setTimeout(() => { btnText.textContent = '✓ Log Workout'; btn.disabled = false; }, 1400);
+
+    // FIX #4: redirect to history after save
+    setTimeout(() => {
+      showPage('history');
+      renderHistory();
+    }, 800);
+
   } catch (e) {
-    toast('❌ Error saving: ' + e.message);
-    btn.textContent = '✓ Log Workout'; btn.disabled = false;
+    showToast('❌ ' + e.message, 'error');
+    btnText.textContent = '✓ Log Workout';
+    btn.disabled = false;
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// HISTORY
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+// HISTORY — FIX #5: always reads from `workouts` array
+// ═══════════════════════════════════════════════════
 function renderHistory() {
-  const filter   = document.getElementById('filter-type')?.value || 'All';
+  const filterEl = document.getElementById('filter-type');
+  const filter   = filterEl ? filterEl.value : 'All';
   const filtered = filter === 'All' ? workouts : workouts.filter(w => w.type === filter);
   const wrap     = document.getElementById('history-table-wrap');
+
   if (!filtered.length) {
-    wrap.innerHTML = '<div class="empty"><span class="icon">📋</span><p>No workouts found.</p></div>';
+    wrap.innerHTML = '<div class="empty"><span class="icon" aria-hidden="true">📋</span><p>No workouts found. Log your first one!</p></div>';
     return;
   }
-  wrap.innerHTML = `<table>
-    <thead><tr><th>Date</th><th>Exercise</th><th>Type</th><th>Duration</th><th>Calories</th><th>Notes</th><th></th></tr></thead>
-    <tbody>${filtered.map((w,i) => `
-      <tr style="animation:fadeUp .3s ${i*.04}s both">
-        <td style="color:var(--muted)">${formatDate(w.date)}</td>
-        <td style="font-weight:600">${w.name}</td>
-        <td><span class="badge badge-${w.type.toLowerCase()}">${w.type}</span></td>
-        <td>${w.duration} min</td>
-        <td>${w.cals ? w.cals+' cal' : '—'}</td>
-        <td style="color:var(--muted);font-size:13px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.notes||'—'}</td>
-        <td><button class="btn btn-sm btn-danger" onclick="deleteWorkout(${w.id})">Delete</button></td>
-      </tr>`).join('')}
-    </tbody></table>`;
+
+  wrap.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Exercise</th>
+            <th scope="col">Type</th>
+            <th scope="col">Duration</th>
+            <th scope="col">Calories</th>
+            <th scope="col">Notes</th>
+            <th scope="col"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filtered.map((w, i) => `
+            <tr style="animation:fadeUp .25s ${i * 0.04}s both">
+              <td style="color:var(--muted);white-space:nowrap">${formatDate(w.date)}</td>
+              <td style="font-weight:600">${escHtml(w.name)}</td>
+              <td><span class="badge badge-${(w.type||'').toLowerCase()}">${escHtml(w.type)}</span></td>
+              <td>${w.duration} min</td>
+              <td>${w.cals ? w.cals + ' cal' : '—'}</td>
+              <td style="color:var(--muted);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(w.notes||'')}">${escHtml(w.notes||'—')}</td>
+              <td>
+                <button class="btn btn-sm btn-danger"
+                  onclick="deleteWorkout(${w.id})"
+                  aria-label="Delete workout: ${escHtml(w.name)}">
+                  Delete
+                </button>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
 }
 
 async function deleteWorkout(id) {
+  if (!confirm('Delete this workout?')) return;
   try {
     await api('/api/workouts?id=' + id, 'DELETE');
     workouts = workouts.filter(w => w.id !== id);
-    renderHistory(); updateDashboard();
-    toast('🗑️ Workout deleted.');
-  } catch (e) { toast('❌ ' + e.message); }
+    renderHistory();
+    updateDashboard();
+    showToast('🗑️ Workout deleted.');
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error');
+  }
 }
 
 function formatDate(d) {
   if (!d) return '—';
-  const [y,m,day] = d.split('-');
+  const [y, m, day] = String(d).split('T')[0].split('-');
   return `${day}/${m}/${y}`;
 }
 
-// ═══════════════════════════════════════════════════════════
+function escHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ═══════════════════════════════════════════════════
 // GOALS
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 async function addGoal() {
   const name    = document.getElementById('goal-name').value.trim();
   const target  = parseFloat(document.getElementById('goal-target').value);
   const unit    = document.getElementById('goal-unit').value.trim();
   const current = parseFloat(document.getElementById('goal-current').value) || 0;
-  if (!name || !target || !unit) return toast('⚠️ Fill in all goal fields!');
+  if (!name || !target || !unit) return showToast('⚠️ Fill in all goal fields.', 'error');
   try {
     const goal = { id: Date.now(), name, target, unit, current };
     await api('/api/goals', 'POST', goal);
     goals.push(goal);
     renderGoals();
-    document.getElementById('goal-name').value    = '';
-    document.getElementById('goal-target').value  = '';
-    document.getElementById('goal-unit').value    = '';
-    document.getElementById('goal-current').value = '';
-    toast('🎯 Goal saved to database!');
-  } catch (e) { toast('❌ ' + e.message); }
+    ['goal-name','goal-target','goal-unit','goal-current'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    showToast('🎯 Goal saved!');
+  } catch (e) { showToast('❌ ' + e.message, 'error'); }
 }
 
 async function deleteGoal(id) {
+  if (!confirm('Delete this goal?')) return;
   try {
     await api('/api/goals?id=' + id, 'DELETE');
     goals = goals.filter(g => g.id !== id);
-    renderGoals(); toast('🗑️ Goal deleted.');
-  } catch (e) { toast('❌ ' + e.message); }
+    renderGoals();
+    showToast('🗑️ Goal deleted.');
+  } catch (e) { showToast('❌ ' + e.message, 'error'); }
 }
 
 async function updateGoalProgress(id, delta) {
   const g = goals.find(g => g.id === id);
   if (!g) return;
+  const prev = g.current;
   g.current = Math.max(0, Math.min(g.target, g.current + delta));
   try {
     await api('/api/goals?id=' + id, 'PUT', { current: g.current });
     renderGoals();
-    if (g.current >= g.target) toast(`🏆 Goal "${g.name}" completed!`);
-  } catch (e) { toast('❌ ' + e.message); }
+    if (g.current >= g.target && prev < g.target) showToast(`🏆 Goal "${g.name}" completed!`);
+  } catch (e) {
+    g.current = prev; // rollback
+    showToast('❌ ' + e.message, 'error');
+  }
 }
 
 function renderGoals() {
   const el = document.getElementById('goals-list');
-  if (!goals.length) { el.innerHTML = '<div class="empty"><span class="icon">🎯</span><p>No goals yet.</p></div>'; return; }
-  el.innerHTML = goals.map((g,i) => {
+  if (!goals.length) {
+    el.innerHTML = '<div class="empty"><span class="icon" aria-hidden="true">🎯</span><p>No goals yet.</p></div>';
+    return;
+  }
+  el.innerHTML = goals.map((g, i) => {
     const pct = Math.min(100, (g.current / g.target) * 100);
     const cls = pct >= 100 ? 'success' : pct < 30 ? 'danger' : '';
-    return `<div class="goal-item" style="animation-delay:${i*.08}s">
-      <div class="goal-header">
-        <span style="font-weight:700">${g.name}</span>
-        <span style="color:var(--muted);font-size:13px">${g.current} / ${g.target} ${g.unit}</span>
-      </div>
-      <div class="goal-bar-bg"><div class="goal-bar-fill ${cls}" style="width:${pct}%"></div></div>
-      <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
-        <button class="btn btn-sm btn-outline" onclick="updateGoalProgress(${g.id},-1)">−</button>
-        <button class="btn btn-sm" onclick="updateGoalProgress(${g.id},1)">+</button>
-        <span style="font-size:13px;color:var(--muted);margin-left:6px">${pct.toFixed(0)}%${pct>=100?' 🏆':''}</span>
-        <button class="btn btn-sm btn-danger" onclick="deleteGoal(${g.id})" style="margin-left:auto">✕</button>
-      </div>
-    </div>`;
+    return `
+      <div class="goal-item" style="animation-delay:${i * 0.07}s">
+        <div class="goal-header">
+          <span style="font-weight:700">${escHtml(g.name)}</span>
+          <span style="color:var(--muted);font-size:13px" aria-label="${g.current} of ${g.target} ${escHtml(g.unit)}">${g.current} / ${g.target} ${escHtml(g.unit)}</span>
+        </div>
+        <div class="goal-bar-bg" role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100" aria-label="${escHtml(g.name)} progress">
+          <div class="goal-bar-fill ${cls}" style="width:${pct}%"></div>
+        </div>
+        <div class="goal-controls">
+          <button class="btn btn-sm btn-outline" onclick="updateGoalProgress(${g.id},-1)" aria-label="Decrease ${escHtml(g.name)} progress">−</button>
+          <button class="btn btn-sm"             onclick="updateGoalProgress(${g.id}, 1)" aria-label="Increase ${escHtml(g.name)} progress">+</button>
+          <span style="font-size:13px;color:var(--muted)" aria-hidden="true">${pct.toFixed(0)}%${pct >= 100 ? ' 🏆' : ''}</span>
+          <button class="btn btn-sm btn-danger" onclick="deleteGoal(${g.id})" style="margin-left:auto" aria-label="Delete goal: ${escHtml(g.name)}">✕</button>
+        </div>
+      </div>`;
   }).join('');
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 // FEEDBACK
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 function setStars(n) {
   selectedStars = n;
-  document.querySelectorAll('.star-input span').forEach((s,i) => s.classList.toggle('lit', i < n));
+  document.querySelectorAll('.star-btn').forEach((btn, i) => {
+    btn.classList.toggle('lit', i < n);
+    btn.setAttribute('aria-pressed', i < n ? 'true' : 'false');
+  });
 }
 
 async function submitFeedback() {
   const name    = document.getElementById('fb-name').value.trim();
   const text    = document.getElementById('fb-text').value.trim();
   const feature = document.getElementById('fb-feature').value;
-  if (!name)          return toast('⚠️ Enter your name!');
-  if (!selectedStars) return toast('⚠️ Select a star rating!');
-  if (!text)          return toast('⚠️ Write some feedback!');
+  if (!name)          return showToast('⚠️ Enter your name.', 'error');
+  if (!selectedStars) return showToast('⚠️ Select a star rating.', 'error');
+  if (!text)          return showToast('⚠️ Write some feedback.', 'error');
   try {
     const fb = { id: Date.now(), name, stars: selectedStars, text, feature,
                  date: new Date().toISOString().split('T')[0] };
@@ -673,184 +1258,172 @@ async function submitFeedback() {
     document.getElementById('fb-name').value = '';
     document.getElementById('fb-text').value = '';
     setStars(0);
-    toast('💬 Feedback saved to database!');
-  } catch (e) { toast('❌ ' + e.message); }
+    showToast('💬 Feedback saved!');
+  } catch (e) { showToast('❌ ' + e.message, 'error'); }
 }
 
 function renderFeedback() {
   const el = document.getElementById('feedback-list');
-  if (!feedbacks.length) { el.innerHTML = '<div class="empty"><span class="icon">💬</span><p>No feedback yet.</p></div>'; return; }
-  el.innerHTML = feedbacks.map((f,i) => `
-    <div class="feedback-card" style="animation-delay:${i*.07}s">
+  if (!feedbacks.length) {
+    el.innerHTML = '<div class="empty"><span class="icon" aria-hidden="true">💬</span><p>No feedback yet. Be the first!</p></div>';
+    return;
+  }
+  el.innerHTML = feedbacks.map((f, i) => `
+    <article class="feedback-card" style="animation-delay:${i * 0.06}s">
       <div class="feedback-meta">
-        <span class="feedback-name">${f.name}</span>
-        <span class="feedback-date">${formatDate(f.date)}</span>
+        <span class="feedback-name">${escHtml(f.name)}</span>
+        <time class="feedback-date" datetime="${f.date}">${formatDate(f.date)}</time>
       </div>
-      <div class="stars">${Array.from({length:5},(_,j)=>`<span class="${j<f.stars?'lit':'dim'}">★</span>`).join('')}</div>
-      <div class="feedback-text">${f.text}</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">Wants next: ${f.feature}</div>
-    </div>`).join('');
+      <div class="stars-display" aria-label="${f.stars} out of 5 stars">
+        ${Array.from({length:5},(_,j)=>`<span class="${j<f.stars?'lit':'dim'}" aria-hidden="true">★</span>`).join('')}
+      </div>
+      <p class="feedback-text">${escHtml(f.text)}</p>
+      <div style="font-size:12px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">Wants next: ${escHtml(f.feature)}</div>
+    </article>`).join('');
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 // DASHBOARD + CHARTS
-// ═══════════════════════════════════════════════════════════
-let chartWeekly, chartTypes, chartCals;
+// ═══════════════════════════════════════════════════
+let chartTypes, chartCals;
 
 function updateDashboard() {
   const total     = workouts.length;
-  const totalMins = workouts.reduce((a,w) => a + w.duration, 0);
-  const totalCals = workouts.reduce((a,w) => a + w.cals, 0);
+  const totalMins = workouts.reduce((a, w) => a + w.duration, 0);
+  const totalCals = workouts.reduce((a, w) => a + w.cals, 0);
 
   // Streak
   const today = new Date(); today.setHours(0,0,0,0);
-  const uniqueDates = [...new Set(workouts.map(w => w.date))].sort().reverse();
-  let streak = 0, check = new Date(today);
+  const uniqueDates = [...new Set(workouts.map(w => String(w.date).split('T')[0]))].sort().reverse();
+  let streak = 0;
+  const check = new Date(today);
   for (const d of uniqueDates) {
     const wd = new Date(d + 'T00:00:00');
-    if (wd.getTime() === check.getTime()) { streak++; check.setDate(check.getDate()-1); }
+    if (wd.getTime() === check.getTime()) { streak++; check.setDate(check.getDate() - 1); }
     else if (wd < check) break;
   }
 
   // This week (Mon–Sun)
   const weekStart = new Date(today);
-  const day = today.getDay(); // 0=Sun
-  weekStart.setDate(today.getDate() - ((day + 6) % 7)); // Monday
+  weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
   weekStart.setHours(0,0,0,0);
-  const thisWeek = workouts.filter(w => new Date(w.date + 'T00:00:00') >= weekStart).length;
+  const thisWeek = workouts.filter(w => new Date(String(w.date).split('T')[0] + 'T00:00:00') >= weekStart).length;
 
   // Favourite type
-  const typeCounts = {};
-  workouts.forEach(w => typeCounts[w.type] = (typeCounts[w.type]||0)+1);
-  const fav = Object.entries(typeCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || '—';
+  const tc = {};
+  workouts.forEach(w => tc[w.type] = (tc[w.type] || 0) + 1);
+  const fav = Object.entries(tc).sort((a,b) => b[1]-a[1])[0]?.[0] || '—';
 
   animateCount(document.getElementById('hero-streak'), streak);
-  animateCount(document.getElementById('hero-total'), total);
-  animateCount(document.getElementById('hero-mins'), totalMins);
-  animateCount(document.getElementById('stat-week'), thisWeek);
-  animateCount(document.getElementById('stat-cals'), totalCals);
-  animateCount(document.getElementById('stat-avg'), total ? Math.round(totalMins/total) : 0);
+  animateCount(document.getElementById('hero-total'),  total);
+  animateCount(document.getElementById('hero-mins'),   totalMins);
+  animateCount(document.getElementById('stat-week'),   thisWeek);
+  animateCount(document.getElementById('stat-cals'),   totalCals);
+  animateCount(document.getElementById('stat-avg'),    total ? Math.round(totalMins / total) : 0);
   document.getElementById('stat-fav').textContent = fav;
 
-  const msgs = ["Keep pushing — every rep counts.","You're on a roll! 💪",
-    "Consistency is your superpower.","Champions are built one session at a time."];
-  document.getElementById('hero-subtitle').textContent = msgs[Math.floor(Math.random()*msgs.length)];
-
+  // Feedback banner
   if (feedbacks.length) {
-    document.getElementById('feedback-banner').style.display = 'block';
+    const banner = document.getElementById('feedback-banner');
+    banner.style.display = 'block';
     const f = feedbacks[0];
     document.getElementById('feedback-banner-text').innerHTML =
-      `<strong>${f.name}</strong> rated ${f.stars}/5 ★ — "${f.text}"`;
+      `<strong>${escHtml(f.name)}</strong> rated ${f.stars}/5 ★ — "${escHtml(f.text)}"`;
   }
 
   buildCharts();
 }
 
 function buildCharts() {
-  const cOpts = { responsive:true, maintainAspectRatio:false, animation:{ duration:1000, easing:'easeOutQuart' } };
+  const isLight  = document.documentElement.classList.contains('light');
+  const tickCol  = isLight ? '#5a5285' : '#777';
+  const gridCol  = isLight ? 'rgba(91,78,232,.08)' : 'rgba(255,255,255,.04)';
+  const legendCol= isLight ? 'rgba(26,22,64,.6)'  : 'rgba(255,255,255,.55)';
 
-  // ── WEEKLY ACTIVITY — correctly maps each of the last 7 days ──
-  const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const today = new Date(); today.setHours(0,0,0,0);
+  const cOpts = {
+    responsive: true, maintainAspectRatio: false,
+    animation: { duration: window.matchMedia('(prefers-reduced-motion:reduce)').matches ? 0 : 900 },
+    plugins: { legend: { labels: { color: legendCol, font: { family:'Space Grotesk', size:12 }, boxWidth:10 } } },
+  };
 
-  // Build a map: "YYYY-MM-DD" → total minutes that day
-  const dailyMins = {};
-  workouts.forEach(w => {
-    dailyMins[w.date] = (dailyMins[w.date] || 0) + w.duration;
-  });
-
-  const weekLabels = [], weekData = [], weekColors = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const iso = d.toISOString().split('T')[0];
-    const mins = dailyMins[iso] || 0;
-    weekLabels.push(DAY_NAMES[d.getDay()]);
-    weekData.push(mins);
-    // Highlight today in brighter colour
-    weekColors.push(i === 0
-      ? 'rgba(124,107,255,1)'
-      : mins > 0 ? 'rgba(124,107,255,0.75)' : 'rgba(124,107,255,0.2)');
-  }
-
-  if (chartWeekly) chartWeekly.destroy();
-  chartWeekly = new Chart(document.getElementById('chartWeekly').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: weekLabels,
-      datasets: [{
-        label: 'Minutes',
-        data: weekData,
-        backgroundColor: weekColors,
-        borderRadius: 8,
-        borderSkipped: false,
-      }]
-    },
-    options: { ...cOpts,
-      plugins: { legend:{ display:false },
-        tooltip:{ callbacks:{ label: ctx => ` ${ctx.parsed.y} min` } } },
-      scales: {
-        x: { ticks:{color:'#888',font:{family:'Space Grotesk'}}, grid:{display:false}, border:{display:false} },
-        y: { ticks:{color:'#888',font:{family:'Space Grotesk'},stepSize:10},
-             grid:{color:'rgba(255,255,255,0.04)'}, border:{display:false}, beginAtZero:true,
-             title:{display:true,text:'minutes',color:'#555',font:{size:11}} }
-      }
-    }
-  });
-
-  // ── WORKOUT TYPES DOUGHNUT ──
-  const typeMap = { Cardio:0, Strength:0, Flexibility:0, HIIT:0 };
-  workouts.forEach(w => { if (typeMap[w.type] !== undefined) typeMap[w.type]++; });
+  // Workout Types doughnut
+  const tm = { Cardio:0, Strength:0, Flexibility:0, HIIT:0 };
+  workouts.forEach(w => { if (tm[w.type] !== undefined) tm[w.type]++; });
   if (chartTypes) chartTypes.destroy();
   chartTypes = new Chart(document.getElementById('chartTypes').getContext('2d'), {
     type: 'doughnut',
     data: {
-      labels: Object.keys(typeMap),
+      labels: Object.keys(tm),
       datasets: [{
-        data: Object.values(typeMap),
-        backgroundColor: ['rgba(96,165,250,.85)','rgba(255,107,157,.85)','rgba(61,255,192,.85)','rgba(124,107,255,.85)'],
+        data: Object.values(tm),
+        backgroundColor: ['rgba(96,165,250,.85)','rgba(255,107,157,.85)','rgba(61,255,192,.85)','rgba(167,139,250,.85)'],
         borderWidth: 0, hoverOffset: 8,
       }]
     },
-    options: { ...cOpts, cutout:'68%',
-      plugins:{ legend:{ position:'bottom',
-        labels:{color:'rgba(255,255,255,.5)',padding:16,font:{family:'Space Grotesk',size:12},boxWidth:10,borderRadius:4} } }
+    options: { ...cOpts, cutout:'66%',
+      plugins: { ...cOpts.plugins,
+        legend: { ...cOpts.plugins.legend, position:'bottom',
+          labels:{ ...cOpts.plugins.legend.labels, padding:14, borderRadius:3 } } }
     }
   });
 
-  // ── CALORIES LINE — last 7 workouts ──
+  // Calories line — last 7 workouts
   const last7 = [...workouts].slice(0, 7).reverse();
   if (chartCals) chartCals.destroy();
   chartCals = new Chart(document.getElementById('chartCals').getContext('2d'), {
     type: 'line',
     data: {
-      labels: last7.map(w => w.name.slice(0,12)),
+      labels: last7.map(w => escHtml(w.name).slice(0, 12)),
       datasets: [{
         label: 'Calories',
         data: last7.map(w => w.cals),
-        borderColor: 'rgba(255,107,157,0.9)',
+        borderColor: isLight ? 'rgba(224,64,122,.9)' : 'rgba(255,107,157,.9)',
         backgroundColor: ctx => {
           const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
-          g.addColorStop(0,'rgba(255,107,157,0.25)');
-          g.addColorStop(1,'rgba(255,107,157,0.01)');
+          g.addColorStop(0, isLight ? 'rgba(224,64,122,.18)' : 'rgba(255,107,157,.22)');
+          g.addColorStop(1, isLight ? 'rgba(224,64,122,.01)' : 'rgba(255,107,157,.01)');
           return g;
         },
-        tension: 0.45, fill: true,
-        pointBackgroundColor: 'rgba(255,107,157,1)',
-        pointBorderColor: '#060610', pointBorderWidth: 2,
-        pointRadius: 6, pointHoverRadius: 9,
+        tension: 0.4, fill: true,
+        pointBackgroundColor: isLight ? 'rgba(224,64,122,1)' : 'rgba(255,107,157,1)',
+        pointBorderColor: isLight ? '#f0eeff' : '#060610', pointBorderWidth: 2,
+        pointRadius: 5, pointHoverRadius: 8,
       }]
     },
-    options: { ...cOpts, plugins:{legend:{display:false}},
+    options: { ...cOpts,
+      plugins: { ...cOpts.plugins, legend:{ display:false } },
       scales: {
-        x:{ticks:{color:'#888',font:{family:'Space Grotesk'}},grid:{display:false},border:{display:false}},
-        y:{ticks:{color:'#888',font:{family:'Space Grotesk'}},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false},beginAtZero:true}
+        x:{ ticks:{color:tickCol,font:{family:'Space Grotesk',size:11}}, grid:{display:false}, border:{display:false} },
+        y:{ ticks:{color:tickCol,font:{family:'Space Grotesk',size:11}}, grid:{color:gridCol}, border:{display:false}, beginAtZero:true },
       }
     }
   });
 }
 
-// ── BOOT ──
+// ═══════════════════════════════════════════════════
+// THEME TOGGLE
+// ═══════════════════════════════════════════════════
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  const btn     = document.getElementById('theme-toggle');
+  btn.setAttribute('aria-pressed', isLight ? 'true' : 'false');
+  btn.setAttribute('aria-label', isLight ? 'Switch to dark mode' : 'Switch to light mode');
+  btn.querySelector('.toggle-icon').textContent  = isLight ? '🌙' : '☀️';
+  btn.querySelector('.toggle-label').textContent = isLight ? 'Dark' : 'Light';
+  localStorage.setItem('tf_theme', isLight ? 'light' : 'dark');
+  if (workouts.length) buildCharts();
+}
+
+// Apply saved theme immediately before first paint
+(function() {
+  if (localStorage.getItem('tf_theme') === 'light') {
+    document.documentElement.classList.add('light');
+  }
+})();
+
+// ═══════════════════════════════════════════════════
+// BOOT — entry point
+// ═══════════════════════════════════════════════════
 boot();
 </script>
 </body>

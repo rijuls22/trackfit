@@ -1,38 +1,33 @@
-//import { sql } from '@vercel/postgres';
-
-// Replace this line at the top of each API file:
-//import { sql } from '@vercel/postgres';
-
-// With these two lines:
 import { neon } from '@neondatabase/serverless';
-const sql = neon(process.env.DATABASE_URL);
 
 export default async function handler(req, res) {
-  // Allow requests from any origin (CORS)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  if (!process.env.DATABASE_URL) {
+    return res.status(500).json({ error: 'DATABASE_URL environment variable is not set. Please connect your Neon database in Vercel.' });
+  }
+
+  const sql = neon(process.env.DATABASE_URL);
+
   try {
-    // Create table if it doesn't exist yet
     await sql`
       CREATE TABLE IF NOT EXISTS workouts (
-        id        BIGINT PRIMARY KEY,
-        name      TEXT NOT NULL,
-        type      TEXT NOT NULL,
-        duration  INTEGER NOT NULL,
-        cals      INTEGER DEFAULT 0,
-        date      TEXT NOT NULL,
-        notes     TEXT DEFAULT '',
+        id         BIGINT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        type       TEXT NOT NULL,
+        duration   INTEGER NOT NULL,
+        cals       INTEGER DEFAULT 0,
+        date       TEXT NOT NULL,
+        notes      TEXT DEFAULT '',
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `;
 
     if (req.method === 'GET') {
-      const { rows } = await sql`
-        SELECT * FROM workouts ORDER BY date DESC, created_at DESC
-      `;
+      const rows = await sql`SELECT * FROM workouts ORDER BY date DESC, created_at DESC`;
       return res.status(200).json(rows);
     }
 
@@ -43,7 +38,7 @@ export default async function handler(req, res) {
       }
       await sql`
         INSERT INTO workouts (id, name, type, duration, cals, date, notes)
-        VALUES (${id}, ${name}, ${type}, ${duration}, ${cals || 0}, ${date}, ${notes || ''})
+        VALUES (${id}, ${name}, ${type}, ${Number(duration)}, ${Number(cals) || 0}, ${date}, ${notes || ''})
       `;
       return res.status(201).json({ success: true });
     }
